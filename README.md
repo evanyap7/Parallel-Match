@@ -13,7 +13,7 @@ football-like ranges (see the realism report).
 
 ## For judges
 
-**Live demo:** _link to be added once deployed_. Start with match **m052** (WES 2-1 COP),
+**Live demo:** <https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io/> (no login). Start with match **m052** (WES 2-1 COP),
 the borderline penalty at 56', and ask "what if that was not a penalty?".
 
 **What you are looking at is a model world.** Every match, club and player is generated.
@@ -26,7 +26,7 @@ number on screen comes with its uncertainty.
 | Is it football-like? | Measured over 360 matches: 2.78 goals, 27.4 shots, 82% pass accuracy, 24.4 fouls, 3.2 yellows, 10.3 corners, 42% home wins, 24% draws per match. All 16 metrics fall inside approximate top-flight ranges (`reports/realism_v1.md`). The ranges are a sanity band, not measured truth. |
 | How is "what if" computed? | Replay the seeded match to the moment, apply one change, then play hundreds of paired rollouts: original and altered branches share random numbers, so the difference is the change, not luck. The result carries a 95% interval (`parallel_match/fork.py`). |
 | Is there a second opinion? | Yes. Precedent from the season itself: comparable borderline calls, split by whether the call was given (`parallel_match/history.py`). When it disagrees with the simulation, the response says so. One function, `history_for()`, feeds both the API and the MCP tool. |
-| How fast? | Measured on a 10-core laptop: a full match simulates in about 60 ms; 200 rollouts take 2 to 4 s on 8 workers; featured moments of the 5 story matches are precomputed at 500 rollouts and return in about 60 ms. |
+| How fast? | Measured on a 10-core laptop: a full match simulates in about 60 ms; 200 rollouts take 2 to 4 s on 8 workers; featured moments of the 5 story matches are precomputed at 500 rollouts and return in about 1 s on the live site. A fresh 200-rollout fork on the deployed single-CPU API takes about 25 s (the live site's one known slow path), so try the featured moments first. |
 | Do the agents invent numbers? | No. All numbers and moment-finding stay in plain code; agents only phrase them, and guardrails reject output with numbers not in the facts or wording that judges officials (`agents/guardrails.py`). |
 | Is it neutral about officials? | Decisions are explained against the Law of the Game they fall under, with the measured margin. Nothing says a referee or player "got it wrong". |
 
@@ -34,9 +34,9 @@ number on screen comes with its uncertainty.
 
 | Service | Used for | Where | Status |
 |---|---|---|---|
-| Microsoft Agent Framework + Azure AI Foundry | Narrator, Law Explainer, Historian, Intervention Parser; keyless sign-in with a managed identity, guardrails and template fallback on every utterance | `agents/`, `docs/agents.md` | Built; Foundry with `PM_AGENT_BACKEND=foundry` (`deploy.sh foundry-create`) |
-| MCP | Season precedent as tools (`history_query`, `season_summary`); the Historian fetches its facts through the deployed MCP server | `mcp_history/`, `agents/history_client.py` | Built; `/precedents` reports `source: "mcp"` |
-| Azure Container Apps | Four apps: front end, simulator API, agents API, MCP server; one user-assigned managed identity | `Dockerfile`, `deploy/`, `docs/deployment.md` | Deploy script ready; live link pending |
+| Microsoft Agent Framework + Azure AI Foundry | Narrator, Law Explainer, Historian, Intervention Parser; keyless sign-in with a managed identity, guardrails and template fallback on every utterance | `agents/`, `docs/agents.md` | Built; Foundry with `PM_AGENT_BACKEND=foundry` (`deploy.sh foundry-create`). The provider in use is shown live at `/agents/health` |
+| MCP | Season precedent as tools (`history_query`, `season_summary`); the Historian fetches its facts through the deployed MCP server | `mcp_history/`, `agents/history_client.py` | Live; the deployed `/agents/precedents` reports `source: "mcp"` |
+| Azure Container Apps | Four apps: front end, simulator API, agents API, MCP server; one user-assigned managed identity | `Dockerfile`, `deploy/`, `docs/deployment.md` | Live: four apps in Japan East (front end, simulator API, agents API, MCP server) |
 | Microsoft Fabric | Season tables and the precedent query in SQL | `python3 -m parallel_match export`, `docs/history-query.md` | Tables and SQL ready; load pending |
 
 **Known limits.** Positions are derived from formations, not tracked, so this is an
