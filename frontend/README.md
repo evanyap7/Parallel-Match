@@ -1,59 +1,66 @@
 # Parallel Match viewer
 
-React + TypeScript + Vite. This directory is the frontend track. It consumes the shared fixtures without changing them or the simulator. The visual replay shows recorded ball-event positions, not invented full-team tracking.
+React + TypeScript + Vite frontend integrated with Evan's completed simulator API. All clubs, players, events and comparisons are synthetic.
 
-## Run
+## Run the full application
 
-Node 22.12+ or 24 recommended.
+From the repository root, use Python 3.11+:
+
+```sh
+python -m venv .venv
+# Windows:
+.venv\Scripts\python -m pip install -r requirements-api.txt
+.venv\Scripts\python -m uvicorn parallel_match.api:app --host 127.0.0.1 --port 8000
+# macOS/Linux: use .venv/bin/python instead.
+```
+
+In a second terminal (Node 22.12+ or 24):
 
 ```sh
 cd frontend
 npm ci
+```
+
+Create `frontend/.env.local` with this public configuration, then start Vite:
+
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+```sh
 npm run dev
 ```
 
-Open the printed localhost URL (default `http://127.0.0.1:5173`). The `predev` and `prebuild` steps copy the repository fixtures into ignored `public/fixtures/`. Do not edit those generated copies.
+Open `http://127.0.0.1:5173`. The badge reads **Live engine**. The default is the WES–COP penalty story (`m052`); all 90 season matches are available, with the five story matches first.
+
+Remove/empty `VITE_API_BASE_URL` and restart for **Offline simulation**. That mode uses the actual precomputed `m052` penalty and `m012` offside fixtures, one alternative each. `predev`/`prebuild` copy shared fixtures unchanged to ignored `public/fixtures/`.
+
+For Azure deployment, set `VITE_API_BASE_URL` before building to the API's HTTPS origin (or `/api` behind a reverse proxy). Serve `dist/` as the static frontend. This is public build-time configuration; never place a secret in a `VITE_` variable. Evan's existing Dockerfile runs the API only; it does not serve the frontend.
+
+## Contract
+
+The source of truth is `../docs/api.md`:
+
+- `GET /matches`, `/clubs`, `/match/{id}` and `/moments/{id}` supply fixtures, names, squads, events and supported interventions.
+- `POST /fork` uses `{match_id, event_id, change}`. The UI exposes officiating flips, red-card reversals, shot outcomes, foul cards, substitutions and pressing intensity. The API validates legal substitutions and remaining substitutions; rejection reasons appear inline.
+- Fork responses use top-level `match_id`, `event_id`, `change`; probability points have numeric `minute` and display `min`; confidence intervals are `uncertainty.shift_ci95` in probability-point changes.
+- `history` is nullable, and empty comparison groups have null rates. Missing precedent is explicitly unavailable. The viewer never invents a history result or treats it as causal evidence.
+- The fork replaces the entire simulator step. Prefix events have `step < divergence.step`, preventing a retained original goal/card at the split.
+- Default fresh runs use the engine's rollout count (currently 200); cached featured runs can return 500. The UI displays the returned count.
+
+API errors never silently switch to fixture results. Requests time out after 60 seconds. Changing the match, selected moment or intervention clears the old result and aborts its client request. Cancellation stops waiting; it does not cancel a running server-side computation.
+
+## Experience and boundaries
+
+Two ball-event pitch replays share playback controls; there is no fabricated player tracking. The chart shows complete scenario probability paths. Club selection changes both the outcome shift and its interval, plus the data summary. Fan/analyst detail exposes additional event evidence.
+
+The frontend creates a deterministic summary from returned values and labels it **Data summary from paired rollouts**. If an agent later supplies `verdict`, it is displayed as **Agent narrative**. This integration does not implement Jiawei's Foundry agents, multilingual narration or Fabric retrieval. The backend's current season precedent is used directly. Kick-off player-unavailability is supported by the backend but has no frontend control yet.
+
+## Checks
 
 ```sh
 npm test
 npm run build
-npm run preview
 ```
 
-`dist/` is a static artifact suitable for the deployment track's container/static web server. No server-side secrets are needed by the viewer. No external fonts or image services are used.
-
-## Connect the API
-
-Set `VITE_API_BASE_URL` to the API origin (or `/api` for a same-origin reverse proxy), then restart Vite or rebuild. An example is in `.env.example`; real `.env` files remain ignored. This is public build-time configuration: never place a secret in a `VITE_` variable.
-
-The adapter uses:
-
-- `GET /matches`: an array of `{match_id, home?, away?}`, or `{matches: [...]}`.
-- `GET /match/{id}`: the exact `docs/event-schema.md` match shape.
-- `POST /fork`: `{match_id, event_id, change: {type: "flip_call", call: "no_foul"}}`, using the complete shape of `fixtures/fork_m012.json`.
-
-Contestable moments are derived from `event.contestable` in the already-loaded match. No second `/moments` request is necessary; that endpoint's response shape is not yet documented. Cross-origin APIs must allow the viewer's origin and JSON POST requests through CORS.
-
-API errors are shown with retry/cancel controls and never silently switch to fixture output. Requests time out after 60 seconds. Selecting another moment aborts the request and clears the previous verdict. Responses must match the selected request, time and simulator step.
-
-## Current boundary
-
-`fixtures/fork_m012.json` is explicitly a placeholder and only covers `m012-0148`. It includes no alternate timeline. The viewer displays both probability curves and the supplied verdict with placeholder labels, but leaves the alternate pitch pending. It never reuses original events as an alternate or invents a fork.
-
-When the engine supplies `alternate.timeline`, the viewer plays it on the shared clock. Both full-match alternate timelines and continuation-only arrays anchored at the decision are accepted. Leave pre-decision events unchanged; keep events chronologically ordered. Set `placeholder: false` only for measured results.
-
-Only typed officiating flips supported by the existing fixture are exposed. Broader substitutions, tactics and free-text parsing need an agreed backend request schema; none is guessed here. Agent narration, multilingual output and real precedent retrieval belong to the other track and have no API contract in this revision.
-
-## UI
-
-- Two SVG pitch panels; pause, restart, scrubbing and 1/6/12/30× playback.
-- Contestable timeline markers and filtered decision list.
-- Matching fork request, divergence marker and stale-result protection.
-- Original/alternate home-win curves; outcome shifts, interval, precedent and disagreement state.
-- Fan/analyst detail and favourite-club impact perspective.
-- Current-time score, shots, simulator xG and pass-completion counts.
-- Responsive layout, keyboard controls, reduced-motion support, modal Escape/focus containment.
-
-The win-probability chart compares the full supplied scenario; it is not labeled a live forecast. Interpolated lines join supplied points. Historical precedent is observational, not an independent causal proof. An API payload missing required evidence is rejected rather than completed with invented values.
-
-See `../docs/uwais/` for demand-check status, demo guidance, rival-review notes and verification.
+Tests include all 60 backend cached fork responses, replay step boundaries, absent precedent, stale/wrong request rejection, substitution eligibility and HTTP errors. See `../docs/uwais/verification.md` for browser integration evidence.

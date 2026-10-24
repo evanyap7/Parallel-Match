@@ -6,7 +6,11 @@ import { alternateEvents, changesFor, eventAt, statsAt } from "./model";
 import type { ForkRequest, MatchEvent } from "./types";
 
 const match = parseMatch(rawMatch);
-const request = rawFork.request as ForkRequest;
+const request: ForkRequest = {
+  match_id: rawFork.match_id,
+  event_id: rawFork.event_id,
+  change: { type: "flip_call" },
+};
 const fork = parseFork(rawFork, request);
 
 describe("shared repository contracts", () => {
@@ -17,8 +21,12 @@ describe("shared repository contracts", () => {
     expect(changesFor(event)).toContainEqual(request.change);
   });
   it("never invents an alternate when the shared fixture has no events", () => {
-    expect(fork.placeholder).toBe(true);
-    expect(alternateEvents(match, fork)).toEqual([]);
+    expect(
+      alternateEvents(match, {
+        ...fork,
+        alternate: { ...fork.alternate, timeline: [] },
+      }),
+    ).toEqual([]);
   });
   it("rejects a response for a different selected decision", () => {
     expect(() =>
@@ -27,7 +35,7 @@ describe("shared repository contracts", () => {
     expect(() =>
       parseFork(rawFork, {
         ...request,
-        change: { type: "flip_call", call: "penalty" },
+        change: { type: "not_sent_off" },
       }),
     ).toThrow();
   });
@@ -36,7 +44,7 @@ describe("shared repository contracts", () => {
     bad.original.win_prob[0].home = 4;
     expect(() => parseFork(bad, request)).toThrow();
     const reversed = structuredClone(rawFork);
-    reversed.uncertainty.home_win_ci95 = [0.8, 0.2];
+    reversed.uncertainty.shift_ci95.home = [0.8, 0.2];
     expect(() => parseFork(reversed, request)).toThrow();
     expect(() => parseFork({ ...rawFork, history: {} }, request)).toThrow();
   });
@@ -105,5 +113,37 @@ describe("replay and statistics", () => {
       alternate: { ...fork.alternate, timeline: match.events },
     });
     expect(result).toHaveLength(match.events.length);
+  });
+});
+
+// Run against all engine-owned cached interventions, including null precedent.
+const cached = import.meta.glob("../../parallel_match/data/forks/**/*.json", {
+  eager: true,
+  import: "default",
+});
+describe("completed engine cache", () => {
+  for (const [path, raw] of Object.entries(cached)) {
+    it(`accepts ${path}`, () => {
+      const r = raw as ForkRequest;
+      const result = parseFork(raw, {
+        match_id: r.match_id,
+        event_id: r.event_id,
+        change: r.change,
+      });
+      expect(result.alternate.timeline.length).toBeGreaterThan(0);
+      expect(result.original.win_prob.length).toBeGreaterThan(0);
+    });
+  }
+  it("replaces the entire shot/goal step, keeping no original event at the split", () => {
+    const joined = alternateEvents(match, fork);
+    expect(joined.filter((e) => e.step >= fork.divergence.step)).toEqual(
+      fork.alternate.timeline,
+    );
+    expect(joined.at(-1)?.score).toEqual(fork.alternate.final_score);
+  });
+  it("accepts absent precedent for a non-officiating intervention", () => {
+    expect(
+      parseFork({ ...rawFork, history: null }, request).history,
+    ).toBeNull();
   });
 });

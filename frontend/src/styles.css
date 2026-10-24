@@ -1396,3 +1396,23 @@ footer > span:first-child {
     scroll-behavior: auto !important;
   }
 }
+
+.decision-controls {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+.decision-controls label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #aab8bb;
+}
+.decision-controls select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.decision-controls input {
+  width: 100%;
+}

@@ -9,12 +9,16 @@ export function ProbabilityChart({
 }) {
   const a = result.original.win_prob,
     b = result.alternate.win_prob;
-  const end = Math.max(90, ...a.map((p) => p.min), ...b.map((p) => p.min));
+  const end = Math.max(
+    90,
+    ...a.map((p) => p.minute),
+    ...b.map((p) => p.minute),
+  );
   const x = (min: number) => 34 + (min / end) * 446;
   const y = (p: number) => 140 - p * 120;
   const path = (values: typeof a) =>
     values
-      .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.min)},${y(p.home)}`)
+      .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.minute)},${y(p.home)}`)
       .join(" ");
   return (
     <section className="probability card">

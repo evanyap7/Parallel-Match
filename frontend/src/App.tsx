@@ -16,7 +16,9 @@ import {
   X,
 } from "lucide-react";
 import {
-  fixtureEventId,
+  fixtureEvents,
+  getMoments,
+  getClubs,
   getFork,
   getMatch,
   getMatches,
@@ -25,6 +27,8 @@ import {
 import {
   alternateEvents,
   changesFor,
+  changeLabel,
+  comparisonSummary,
   clockLabel,
   clubName,
   describe,
@@ -37,14 +41,23 @@ import {
 } from "./model";
 import { Pitch } from "./components/Pitch";
 import { ProbabilityChart } from "./components/ProbabilityChart";
-import type { ForkResult, Match, MatchEvent, MatchSummary } from "./types";
-
+import { DecisionControls } from "./components/DecisionControls";
+import type {
+  Change,
+  Club,
+  ForkResult,
+  Match,
+  MatchEvent,
+  MatchSummary,
+} from "./types";
 const errorText = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Something went wrong. Please try again.";
-
 export default function App() {
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [apiMoments, setApiMoments] = useState<MatchEvent[]>([]);
+  const [customChange, setCustomChange] = useState<Change>();
   const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [matchId, setMatchId] = useState("");
   const [match, setMatch] = useState<Match>();
@@ -64,7 +77,6 @@ export default function App() {
   const forkController = useRef<AbortController | null>(null);
   const [attempt, setAttempt] = useState(0);
   const helpRef = useRef<HTMLElement>(null);
-
   useEffect(() => {
     if (!showHelp) return;
     const returnFocus = document.activeElement as HTMLElement | null;
@@ -94,23 +106,30 @@ export default function App() {
       returnFocus?.focus();
     };
   }, [showHelp]);
-
   useEffect(() => {
     const ctrl = new AbortController();
     setLoadError("");
-    getMatches(ctrl.signal)
-      .then((list) => {
+    Promise.all([
+      getMatches(ctrl.signal),
+      sourceMode === "api" ? getClubs(ctrl.signal) : Promise.resolve([]),
+    ])
+      .then(([list, league]) => {
         if (ctrl.signal.aborted) return;
         if (!list.length) throw new Error("The API returned no matches.");
         setMatches(list);
-        setMatchId((id) => id || list[0].match_id);
+        setClubs(league);
+        setMatchId(
+          (id) =>
+            id ||
+            list.find((m) => m.match_id === "m052")?.match_id ||
+            list[0].match_id,
+        );
       })
       .catch((e) => {
         if (!ctrl.signal.aborted) setLoadError(errorText(e));
       });
     return () => ctrl.abort();
   }, [retry]);
-
   useEffect(() => {
     if (!matchId) return;
     const ctrl = new AbortController();
@@ -121,14 +140,26 @@ export default function App() {
     setLoadError("");
     setForkLoading(false);
     setPlaying(false);
-    getMatch(matchId, ctrl.signal)
-      .then((data) => {
+    setCustomChange(undefined);
+    setApiMoments([]);
+    Promise.all([
+      getMatch(matchId, ctrl.signal),
+      sourceMode === "api"
+        ? getMoments(matchId, ctrl.signal)
+        : Promise.resolve([]),
+    ])
+      .then(([data, suppliedMoments]) => {
         if (ctrl.signal.aborted) return;
+        const available =
+          sourceMode === "api"
+            ? suppliedMoments
+            : data.events.filter((e) => changesFor(e).length);
         setMatch(data);
+        setApiMoments(available);
         setFocus(data.home);
         const initial =
-          data.events.find((e) => e.id === fixtureEventId) ??
-          data.events.find((e) => e.contestable);
+          available.find((e) => e.id === fixtureEvents[matchId]) ??
+          available[0];
         setSelectedId(initial?.id ?? "");
         setTime(initial?.t ?? 0);
         setFilter("all");
@@ -139,8 +170,7 @@ export default function App() {
     return () => ctrl.abort();
   }, [matchId, retry]);
   useEffect(() => () => forkController.current?.abort(), []);
-
-  const selected = match?.events.find((e) => e.id === selectedId);
+  const selected = apiMoments.find((e) => e.id === selectedId);
   const forkEvents = useMemo(
     () => (match && result ? alternateEvents(match, result) : []),
     [match, result],
@@ -160,37 +190,49 @@ export default function App() {
   useEffect(() => {
     if (playing && time >= end) setPlaying(false);
   }, [time, end, playing]);
-
-  const moments = useMemo(
-    () => match?.events.filter((e) => e.contestable) ?? [],
-    [match],
-  );
+  const moments = apiMoments;
   const filtered = moments.filter(
     (e) =>
       filter === "all" ||
       (filter === "offside"
         ? e.type === "offside" || e.call === "onside"
-        : e.law?.startsWith("Law 12")),
+        : filter === "foul"
+          ? e.law?.startsWith("Law 12")
+          : ["goal", "shot", "card", "substitution"].includes(e.type)),
   );
   const stats = useMemo(
     () => (match ? statsAt(match, time) : undefined),
     [match, time],
   );
   const current = match ? eventAt(match.events, time) : undefined;
-  const canMock = sourceMode !== "fixtures" || selectedId === fixtureEventId;
-  const change = selected ? changesFor(selected)[0] : undefined;
-
+  const canMock =
+    sourceMode !== "fixtures" || selectedId === fixtureEvents[matchId];
+  const change =
+    customChange ?? (selected ? changesFor(selected)[0] : undefined);
+  const changeReady =
+    change &&
+    (change.type !== "substitution" ||
+      (change.team && change.off && change.on));
+  const side = focus === match?.away ? "away" : "home";
+  function updateChange(value: Change) {
+    forkController.current?.abort();
+    setForkLoading(false);
+    setResult(undefined);
+    setForkError("");
+    setCustomChange(value);
+  }
   function chooseMoment(event: MatchEvent) {
     forkController.current?.abort();
     setForkLoading(false);
     setResult(undefined);
     setForkError("");
     setSelectedId(event.id);
+    setCustomChange(undefined);
     setTime(event.t);
     setPlaying(false);
   }
   async function explore() {
-    if (!match || !selected || !change) return;
+    if (!match || !selected || !change || !changeReady) return;
     forkController.current?.abort();
     const ctrl = new AbortController();
     forkController.current = ctrl;
@@ -221,7 +263,6 @@ export default function App() {
       if (!ctrl.signal.aborted) setForkLoading(false);
     }
   }
-
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -235,7 +276,7 @@ export default function App() {
         <div className="topbar-right">
           <span className="source-pill">
             <span className="status-dot" />
-            {sourceMode === "fixtures" ? "Fixture workspace" : "API mode"}
+            {sourceMode === "fixtures" ? "Offline simulation" : "Live engine"}
           </span>
           <button
             className="icon-button"
@@ -309,7 +350,7 @@ export default function App() {
                       {matches.map((m) => (
                         <option key={m.match_id} value={m.match_id}>
                           {m.home && m.away
-                            ? `${m.home} vs ${m.away}`
+                            ? `${m.home} vs ${m.away}${m.story ? ` · ${readable(m.story)}` : ""} · ${m.match_id}`
                             : m.match_id}
                         </option>
                       ))}
@@ -338,9 +379,10 @@ export default function App() {
               <div className="fixture-notice">
                 <CircleHelp size={15} />
                 <span>
-                  Original replay uses generated match events. Fork statistics
-                  are <strong>placeholders</strong>; the alternate event feed is
-                  pending.
+                  Both replays and statistics come from the{" "}
+                  <strong>completed simulator</strong>. Offline mode includes
+                  one featured alternative per match; connect the engine to
+                  explore every decision.
                 </span>
               </div>
             )}
@@ -453,7 +495,7 @@ export default function App() {
                   </div>
                   <div className="timeline-key">
                     <span>
-                      <i /> Contestable decision
+                      <i /> Supported moment
                     </span>
                     <span>{moments.length} moments to explore</span>
                   </div>
@@ -508,8 +550,7 @@ export default function App() {
                         {result.placeholder
                           ? "Fixture comparison"
                           : "Model comparison"}{" "}
-                        · {result.divergence.min}′ ·{" "}
-                        {readable(result.request.change.call)}
+                        · {result.divergence.min}′ · {result.description}
                       </span>
                       <span className="small-label">
                         {result.placeholder
@@ -525,13 +566,20 @@ export default function App() {
                             <Sparkles size={15} /> The turning point
                           </h3>
                         </div>
-                        <p className="verdict-text">{result.verdict}</p>
+                        <p className="verdict-text">
+                          {comparisonSummary(result, focus, side)}
+                        </p>
+                        <p className="small muted">
+                          {result.verdict
+                            ? "Agent narrative"
+                            : "Data summary from paired rollouts"}
+                          {result.cached ? " · Precomputed simulation" : ""}
+                          {!result.diverged
+                            ? " · No immediate change at the selected step"
+                            : ""}
+                        </p>
                         <div className="final-comparison">
-                          <span>
-                            Illustrative
-                            {!result.placeholder ? " / typical" : ""} full-time
-                            paths
-                          </span>
+                          <span>Recorded original / typical alternate</span>
                           <div>
                             <span>
                               Original{" "}
@@ -563,7 +611,7 @@ export default function App() {
                         <span className="small-label">
                           {result.placeholder
                             ? "SAMPLE EVIDENCE ONLY"
-                            : "TWO ESTIMATES"}
+                            : "SIMULATION & PRECEDENT"}
                         </span>
                       </div>
                       <div className="evidence-grid">
@@ -580,12 +628,11 @@ export default function App() {
                           </strong>
                           <p>{focus} win-probability shift</p>
                           <small>
-                            {result.rollouts.toLocaleString()}{" "}
-                            {result.placeholder ? "placeholder" : "reported"}{" "}
-                            rollouts · {match.home} win 95% interval:{" "}
-                            {result.uncertainty.home_win_ci95
-                              .map(percent)
-                              .join("–")}
+                            {result.rollouts.toLocaleString()} paired rollouts ·{" "}
+                            {focus} shift 95% interval:{" "}
+                            {result.uncertainty.shift_ci95[side]
+                              .map(points)
+                              .join(" to ")}
                           </small>
                         </div>
                         <div>
@@ -593,29 +640,48 @@ export default function App() {
                             02 / SEASON PRECEDENT
                           </span>
                           <strong className="impact-number">
-                            {result.history.n}
+                            {result.history?.n ?? "—"}
                             <span className="impact-unit">moments</span>
                           </strong>
-                          <p>{result.history.description}</p>
+                          <p>
+                            {result.history?.description ??
+                              "No comparable season history for this intervention."}
+                          </p>
                           <small>
-                            Home win share:{" "}
-                            {percent(result.history.home_win_share)}.
+                            {result.history ? (
+                              <>
+                                {result.history.attacking_team} attacking-team
+                                win share: call given{" "}
+                                {result.history.when_given.win === null
+                                  ? "unavailable"
+                                  : percent(result.history.when_given.win)}{" "}
+                                (n={result.history.when_given.n}); not given{" "}
+                                {result.history.when_not_given.win === null
+                                  ? "unavailable"
+                                  : percent(
+                                      result.history.when_not_given.win,
+                                    )}{" "}
+                                (n={result.history.when_not_given.n}).{" "}
+                              </>
+                            ) : (
+                              "Precedent is currently available for officiating flips only. "
+                            )}
                             Observational precedent is not a causal estimate.
                           </small>
                         </div>
                       </div>
                       <div
-                        className={`agreement ${result.history.agrees_with_simulation === false ? "disagrees" : ""}`}
+                        className={`agreement ${result.history?.agrees_with_simulation === false ? "disagrees" : ""}`}
                       >
-                        {result.history.agrees_with_simulation === true ? (
+                        {result.history?.agrees_with_simulation === true ? (
                           <Check size={15} />
                         ) : (
                           <CircleHelp size={15} />
                         )}
                         <span>
-                          {result.history.agrees_with_simulation === null
+                          {result.history?.agrees_with_simulation == null
                             ? "No agreement assessment supplied."
-                            : result.history.agrees_with_simulation
+                            : result.history?.agrees_with_simulation
                               ? "The supplied estimates agree directionally."
                               : "The supplied estimates disagree. This comparison is inconclusive."}
                           {result.placeholder
@@ -674,7 +740,7 @@ export default function App() {
                           <span>Alternative</span>
                           <strong className="lavender">
                             {change
-                              ? readable(change.call)
+                              ? changeLabel(change, selected)
                               : "Not yet supported"}
                           </strong>
                         </div>
@@ -704,9 +770,18 @@ export default function App() {
                           </>
                         )}
                       </div>
+                      {sourceMode === "api" && (
+                        <DecisionControls
+                          event={selected}
+                          match={match}
+                          clubs={clubs}
+                          change={change}
+                          onChange={updateChange}
+                        />
+                      )}
                       <button
                         className="primary explore"
-                        disabled={!change || !canMock || forkLoading}
+                        disabled={!changeReady || !canMock || forkLoading}
                         onClick={explore}
                       >
                         {forkLoading ? (
@@ -733,13 +808,13 @@ export default function App() {
                       )}
                       {!canMock && (
                         <p className="small muted">
-                          Only the 10′ foul has a canned response. Other moments
-                          require Evan’s live fork API.{" "}
+                          Offline mode includes only the featured alternative.
+                          Connect the live engine to explore other moments.{" "}
                           <button
                             className="text-button"
                             onClick={() => {
                               const e = match.events.find(
-                                (e) => e.id === fixtureEventId,
+                                (e) => e.id === fixtureEvents[matchId],
                               );
                               if (e) chooseMoment(e);
                             }}
@@ -755,7 +830,7 @@ export default function App() {
                       )}
                       <p className="model-disclaimer">
                         {sourceMode === "fixtures"
-                          ? "Loads the shared placeholder response."
+                          ? "Loads a precomputed simulator comparison."
                           : "Runs a model comparison using the API."}{" "}
                         A possibility, not a prediction.
                       </p>
@@ -775,7 +850,7 @@ export default function App() {
                       </div>
                     </>
                   ) : (
-                    <p>No contestable decisions in this match.</p>
+                    <p>No supported moments in this match.</p>
                   )}
                 </section>
                 <section className="moments-card card">
@@ -790,6 +865,7 @@ export default function App() {
                       ["all", "All"],
                       ["foul", "Contact"],
                       ["offside", "Offside"],
+                      ["other", "Other"],
                     ].map(([value, label]) => (
                       <button
                         key={value}
@@ -885,9 +961,11 @@ export default function App() {
               continuation after a single changed decision.
             </p>
             <p>
-              The current fixture contains placeholder probabilities, history
-              and a verdict. It does not contain an alternate event timeline.
-              Those limitations are visible throughout the interface.
+              Each comparison pairs original and alternate simulations using
+              shared random seeds. The typical alternate replay is one possible
+              path; the confidence interval describes the change across
+              rollouts. Season precedent compares different situations and may
+              disagree.
             </p>
             <p>
               The pitch shows ball-event positions only. It does not invent

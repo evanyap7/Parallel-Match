@@ -15,7 +15,7 @@ export const CLUBS: Record<string, string> = {
 export const clubName = (code: string) => CLUBS[code] ?? code;
 export const percent = (n: number) => `${(n * 100).toFixed(0)}%`;
 export const points = (n: number) =>
-  `${n > 0 ? "+" : ""}${(n * 100).toFixed(0)} pp`;
+  `${n > 0 ? "+" : ""}${(n * 100).toFixed(1)} pp`;
 export const scoreText = (score: Score) => `${score[0]} – ${score[1]}`;
 export const readable = (s: string) => s.replaceAll("_", " ");
 export function clockLabel(t: number) {
@@ -39,14 +39,55 @@ export function eventAt(
   return events[lo - 1];
 }
 export function changesFor(event: MatchEvent): Change[] {
-  if (event.call === "free_kick" || event.call === "penalty")
-    return [{ type: "flip_call", call: "no_foul" }];
-  if (event.type === "offside" || event.call === "offside")
-    return [{ type: "flip_call", call: "onside" }];
-  if (event.call === "onside") return [{ type: "flip_call", call: "offside" }];
-  if (event.call === "no_foul")
-    return [{ type: "flip_call", call: "free_kick" }];
-  return [];
+  if (event.changes) return event.changes;
+  const changes: Change[] = [];
+  if (event.contestable) changes.push({ type: "flip_call" });
+  if (event.type === "card" && event.color === "red")
+    changes.push({ type: "not_sent_off" });
+  if (event.type === "goal")
+    changes.push({ type: "shot_outcome", outcome: "saved" });
+  if (
+    event.type === "shot" &&
+    ["saved", "off_target"].includes(event.outcome ?? "") &&
+    (event.xg ?? 0) >= 0.15
+  )
+    changes.push({ type: "shot_outcome", outcome: "goal" });
+  if (event.type === "substitution") changes.push({ type: "substitution" });
+  return changes;
+}
+export function changeLabel(change: Change, event?: MatchEvent) {
+  switch (change.type) {
+    case "flip_call":
+      return event?.call === "offside"
+        ? "Play on: onside"
+        : event?.call === "onside"
+          ? "Flag offside"
+          : event?.call === "no_foul"
+            ? "Award the foul"
+            : "Play on: no foul";
+    case "not_sent_off":
+      return "Keep the player on";
+    case "shot_outcome":
+      return change.outcome === "goal"
+        ? "The shot goes in"
+        : "The goal is saved";
+    case "card":
+      return change.card ? `Show a ${change.card} card` : "No card";
+    case "substitution":
+      return "Change a player";
+    case "tactics":
+      return "Change the pressing intensity";
+  }
+}
+export function comparisonSummary(
+  result: ForkResult,
+  club: string,
+  side: "home" | "away",
+) {
+  if (result.verdict) return result.verdict;
+  const shift = result.outcome_shift[side];
+  const interval = result.uncertainty.shift_ci95[side];
+  return `${result.description}. Across ${result.rollouts} paired simulations, ${club}’s win chance ${shift < 0 ? "falls" : "rises"} by ${Math.abs(shift * 100).toFixed(1)} percentage points. ${interval[0] <= 0 && interval[1] >= 0 ? "The interval includes zero, so the direction remains uncertain." : "This is an estimate within the synthetic model world."}`;
 }
 export function describe(event?: MatchEvent) {
   if (!event) return "Waiting for kick-off";
@@ -92,12 +133,8 @@ export function alternateEvents(
   if (!result.alternate.timeline.length) return [];
   const first = result.alternate.timeline[0];
   if (first.t < result.divergence.t) return result.alternate.timeline;
-  const anchor = match.events.findIndex(
-    (e) => e.id === result.divergence.event_id,
-  );
-  const prefix =
-    anchor >= 0
-      ? match.events.slice(0, anchor)
-      : match.events.filter((e) => e.t < result.divergence.t);
+  // The engine replaces an entire simulator step (e.g. shot + goal + red card),
+  // not just the selected event. Keeping earlier events at that step duplicates outcomes.
+  const prefix = match.events.filter((e) => e.step < result.divergence.step);
   return [...prefix, ...result.alternate.timeline];
 }

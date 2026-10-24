@@ -1,50 +1,35 @@
-# Frontend handoff and verification
+# Integration verification — 24 October 2026
 
-Verified on 24 October 2026 against base commit `09c9a5d`.
+Evan's main commit `fd05be0` was merged into `uwais/frontend-match-viewer` without Git conflicts. User approved adapting the frontend to the completed backend contract. Integration edits stay in `frontend/` and `docs/uwais/`; backend code and shared fixtures are preserved.
 
-## Story verified
+## Story
 
-A fan loads the synthetic match, selects a contestable event, requests the matching fixture fork and sees the comparison with explicit placeholder labels. The original pitch, event evidence and statistics follow the replay clock. The missing alternate event array produces a pending state.
+A fan chooses a synthetic match and moment, submits an intervention to the live Python API, and sees a synchronized alternate replay with outcome shifts, uncertainty and available season precedent.
 
-## Automated checks
+## Evidence
 
-- Existing simulator: all 17 unittest tests pass using the bundled Python runtime.
-- Frontend: 13 Vitest tests pass across shared-contract, replay/statistics and HTTP-adapter tests.
-- TypeScript check and Vite production build pass.
-- Package audit after updating the test runner reports zero vulnerabilities.
-
-The tests cover incorrect event IDs and intervention types, invalid probabilities and intervals, unsorted or duplicate events, future-score leakage, same-time event ordering, shot/pass aggregation, empty alternate handling, full versus continuation timelines, exact API paths and JSON request bodies, and API failures without fixture fallback.
-
-## Browser checks
-
-- Fixture loads and the 10-minute foul renders its recorded call and Law reference.
-- Explore displays both supplied win-probability curves, the verdict, interval and precedent cards.
-- Selecting another moment removes the old comparison and disables unsupported fixture requests.
-- Load example moment returns to the one supported canned request.
-- Analyst view exposes `m012-0148` and its simulator step/margin.
-- Play advances the clock; pause stops it; restart resets it to 00:00.
-- Changing the followed club updates the win-probability impact perspective.
-- Responsive checks at 390 px and 1440 px report no horizontal document overflow.
-- Browser console reports no errors or warnings during the verified fixture flow.
-
-## Integration boundary
-
-No live backend existed at verification time. The HTTP adapter is tested with mocked responses, not a deployed service. Live fork execution, real alternate events, actual historical comparisons, AI narration and Azure deployment remain dependent on Evan and Jiawei's work. Do not describe those boundaries as verified end-to-end.
-
-When the API arrives, use the configuration in `frontend/README.md`, then verify that `alternate.timeline` is nonempty, original and alternate clocks stay aligned, a second decision cannot receive a stale first response, and source labels accurately reflect measured versus placeholder values.
-
-## Uwais task status
-
-| Task | Status |
+| Boundary | Result |
 |---|---|
-| React scaffold and original SVG replay | Implemented and browser checked |
-| Contestable moment timeline | Implemented and browser checked |
-| Split-screen shell, divergence, probability curves and verdict | Implemented; actual alternate replay needs engine events |
-| Live API adapter | Implemented and unit tested; live-service verification pending |
-| Demand check with five fans | Not conducted; questionnaire and fictional examples clearly labeled |
-| Rival demo review | One demo inspected; other access limitations documented |
-| Demo video under two minutes | 72-second frontend preview recorded; final integrated take pending |
+| Python backend | 31 tests passed, including actual API fork round-trip, determinism, interventions and rules |
+| Frontend contract | All 60 engine-owned cached forks accepted, including nullable history and goal/red-card interventions |
+| Live browser → API | `/matches`, `/clubs`, `/match/m052`, `/moments/m052` and `/fork` returned HTTP 200 |
+| Penalty flip | Browser showed 500 paired runs, WES shift −14.4 pp, 21 comparable moments, real alternate events |
+| Fresh tactical fork | WES press 0.30 → 0.80 returned 200 runs and +14.0 pp (95% interval +5.4 to +22.6 pp) |
+| Fresh substitution | W10 → W20 returned 200 runs and +1.0 pp; interval included zero and summary stated uncertainty |
+| Goal saved | Browser showed 500 runs, WES −21.2 pp; full-time alternate replay ended 1–1 versus original 2–1 |
+| Club personalization | Switching to COP changed the goal comparison to +33.2 pp, interval +28.7 to +37.7 pp |
+| Missing precedent | Goal, tactics and substitution comparisons displayed unavailable history rather than fabricated rates |
+| Offline mode | Both m052 penalty and m012 offside loaded real alternate events without API configuration |
+| Browser console | No errors during live integration checks |
 
-## Ownership
+Values above are simulator results, not real-football forecasts. Browser verification used the local API, not an Azure deployment. The initial sandboxed Python test run stalled at process-worker startup; it was stopped, and the full suite passed with local process execution enabled in 36 seconds. The installed Starlette version printed a non-failing httpx deprecation warning.
 
-Only `frontend/` and `docs/uwais/` are added. The shared fixtures, simulator, root README, existing plan and backend schema are not changed. The branch is intended for a PR into `main` under the existing team workflow.
+## Handoff
+
+- API contract: `docs/api.md`; frontend setup: `frontend/README.md`.
+- Jiawei can integrate agent output through a documented API addition. The current summary is calculated prose, not an LLM-generated explanation.
+- Fabric/MCP historian, agent orchestration, multilingual output and Azure deployment are not verified by this integration.
+- Five-fan demand validation remains unperformed. `demand-check.md` contains clearly fictional examples and a real interview template.
+- `demo-preview.mp4` is the older placeholder UI preview; it is not evidence of this integrated version. Use the updated demo script for a final recording after the agent track is connected.
+
+Final frontend checks: 77 tests passed; TypeScript and Vite production build passed; git diff whitespace check passed.

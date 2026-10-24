@@ -1,4 +1,5 @@
 import type {
+  Club,
   ForkRequest,
   ForkResult,
   Match,
@@ -11,7 +12,10 @@ const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(
   "",
 );
 export const sourceMode = configuredBase ? "api" : "fixtures";
-export const fixtureEventId = "m012-0148";
+export const fixtureEvents: Record<string, string> = {
+  m012: "m012-0302",
+  m052: "m052-0715",
+};
 const base = configuredBase ?? "";
 type Obj = Record<string, unknown>;
 function object(value: unknown): value is Obj {
@@ -84,16 +88,27 @@ function curveValid(value: unknown) {
   return value.every((p) => {
     if (
       !object(p) ||
-      !finite(p.min) ||
-      p.min < prev ||
+      !finite(p.minute) ||
+      p.minute < prev ||
       !probability(p.home) ||
       !probability(p.draw) ||
       !probability(p.away)
     )
       return false;
-    prev = p.min;
+    prev = p.minute;
     return Math.abs(p.home + p.draw + p.away - 1) < 0.02;
   });
+}
+// Structural comparison tolerates JSON key order, but never a different intervention.
+function sameChange(a: unknown, b: unknown): boolean {
+  if (object(a) && object(b)) {
+    const keys = Object.keys(a);
+    return (
+      keys.length === Object.keys(b).length &&
+      keys.every((k) => k in b && sameChange(a[k], b[k]))
+    );
+  }
+  return a === b;
 }
 export function parseFork(value: unknown, request: ForkRequest): ForkResult {
   const fail = () => {
@@ -102,20 +117,25 @@ export function parseFork(value: unknown, request: ForkRequest): ForkResult {
     );
   };
   if (!object(value)) return fail();
-  const r = value.request,
-    d = value.divergence,
+  const d = value.divergence,
     o = value.original,
     a = value.alternate;
   const u = value.uncertainty,
     h = value.history,
     shift = value.outcome_shift;
+  const interval = (v: unknown) => pair(v) && v[0] <= v[1];
+  const rates = (v: unknown) =>
+    object(v) &&
+    finite(v.n) &&
+    v.n >= 0 &&
+    (v.win === null || probability(v.win));
   if (
-    !object(r) ||
-    !object(r.change) ||
-    r.match_id !== request.match_id ||
-    r.event_id !== request.event_id ||
-    r.change.type !== request.change.type ||
-    r.change.call !== request.change.call ||
+    value.match_id !== request.match_id ||
+    value.event_id !== request.event_id ||
+    !sameChange(value.change, request.change) ||
+    value.model_world !== true ||
+    typeof value.description !== "string" ||
+    typeof value.diverged !== "boolean" ||
     !object(d) ||
     d.event_id !== request.event_id ||
     !finite(d.t) ||
@@ -130,15 +150,21 @@ export function parseFork(value: unknown, request: ForkRequest): ForkResult {
     !curveValid(a.win_prob) ||
     !eventsValid(a.timeline) ||
     !object(u) ||
-    !pair(u.home_win_ci95) ||
-    !u.home_win_ci95.every(probability) ||
-    u.home_win_ci95[0] > u.home_win_ci95[1] ||
-    !object(h) ||
-    !finite(h.n) ||
-    h.n < 0 ||
-    !probability(h.home_win_share) ||
-    typeof h.description !== "string" ||
-    ![true, false, null].includes(h.agrees_with_simulation as boolean | null) ||
+    !object(u.shift_ci95) ||
+    !["home", "draw", "away"].every((k) =>
+      interval((u.shift_ci95 as Obj)[k]),
+    ) ||
+    (h !== null &&
+      (!object(h) ||
+        !finite(h.n) ||
+        h.n < 0 ||
+        typeof h.description !== "string" ||
+        typeof h.attacking_team !== "string" ||
+        !rates(h.when_given) ||
+        !rates(h.when_not_given) ||
+        ![true, false, null].includes(
+          h.agrees_with_simulation as boolean | null,
+        ))) ||
     !object(shift) ||
     ![shift.home, shift.draw, shift.away].every(
       (x) => finite(x) && Math.abs(x) <= 1,
@@ -147,9 +173,12 @@ export function parseFork(value: unknown, request: ForkRequest): ForkResult {
       (shift.home as number) + (shift.draw as number) + (shift.away as number),
     ) > 0.02 ||
     !finite(value.rollouts) ||
-    value.rollouts < 0 ||
-    typeof value.verdict !== "string" ||
-    (value.placeholder !== undefined && typeof value.placeholder !== "boolean")
+    value.rollouts < 10 ||
+    (value.verdict != null && typeof value.verdict !== "string") ||
+    !Array.isArray(value.score_spread) ||
+    !value.score_spread.every(
+      (s) => object(s) && score(s.score) && probability(s.share),
+    )
   )
     return fail();
   return value as unknown as ForkResult;
@@ -169,15 +198,22 @@ async function requestJSON(
         }
       : {}),
   });
-  if (!response.ok)
-    throw new Error(
-      `Request failed (${response.status}). Check the API connection and try again.`,
-    );
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    const detail =
+      object(problem) && typeof problem.detail === "string"
+        ? problem.detail
+        : "Check the API connection and try again.";
+    throw new Error(`Request failed (${response.status}). ${detail}`);
+  }
   return response.json();
 }
 export async function getMatches(signal: AbortSignal): Promise<MatchSummary[]> {
   if (sourceMode === "fixtures")
-    return [{ match_id: "m012", home: "HAR", away: "NOR" }];
+    return [
+      { match_id: "m052", home: "WES", away: "COP", story: "penalty_drama" },
+      { match_id: "m012", home: "IRO", away: "LAR" },
+    ];
   const result = await requestJSON(`${base}/matches`, signal);
   const list = Array.isArray(result)
     ? result
@@ -186,14 +222,16 @@ export async function getMatches(signal: AbortSignal): Promise<MatchSummary[]> {
       : null;
   if (!list || !list.every((m) => object(m) && typeof m.match_id === "string"))
     throw new Error("GET /matches must return matches with a match_id.");
-  return list as MatchSummary[];
+  return (list as MatchSummary[]).sort(
+    (a, b) => Number(Boolean(b.story)) - Number(Boolean(a.story)),
+  );
 }
 export async function getMatch(id: string, signal: AbortSignal) {
   return parseMatch(
     await requestJSON(
       sourceMode === "api"
         ? `${base}/match/${encodeURIComponent(id)}`
-        : "/fixtures/m012.json",
+        : `/fixtures/${encodeURIComponent(id)}.json`,
       signal,
     ),
   );
@@ -201,18 +239,67 @@ export async function getMatch(id: string, signal: AbortSignal) {
 export async function getFork(request: ForkRequest, signal: AbortSignal) {
   if (
     sourceMode === "fixtures" &&
-    (request.match_id !== "m012" ||
-      request.event_id !== fixtureEventId ||
-      request.change.call !== "no_foul")
+    (request.event_id !== fixtureEvents[request.match_id] ||
+      request.change.type !== "flip_call")
   ) {
     throw new Error(
-      "This fixture only covers the foul at 10′. Connect the live API to explore another decision.",
+      "This fixture only covers the featured decision. Connect the live API to explore another alternative.",
     );
   }
   const result = await requestJSON(
-    sourceMode === "api" ? `${base}/fork` : "/fixtures/fork_m012.json",
+    sourceMode === "api"
+      ? `${base}/fork`
+      : `/fixtures/fork_${encodeURIComponent(request.match_id)}.json`,
     signal,
     sourceMode === "api" ? request : undefined,
   );
   return parseFork(result, request);
+}
+
+export async function getMoments(
+  id: string,
+  signal: AbortSignal,
+): Promise<MatchEvent[]> {
+  const result = await requestJSON(
+    `${base}/moments/${encodeURIComponent(id)}`,
+    signal,
+  );
+  if (
+    !eventsValid(result) ||
+    !result.every(
+      (e) =>
+        Array.isArray(e.changes) &&
+        e.changes.every(
+          (c) =>
+            c &&
+            [
+              "flip_call",
+              "not_sent_off",
+              "shot_outcome",
+              "substitution",
+            ].includes(c.type),
+        ),
+    )
+  )
+    throw new Error("The moments response does not match docs/api.md.");
+  return result;
+}
+export async function getClubs(signal: AbortSignal): Promise<Club[]> {
+  const result = await requestJSON(`${base}/clubs`, signal);
+  if (
+    !Array.isArray(result) ||
+    !result.every(
+      (c) =>
+        object(c) &&
+        typeof c.code === "string" &&
+        typeof c.name === "string" &&
+        Array.isArray(c.squad) &&
+        c.squad.every(
+          (p) =>
+            object(p) && typeof p.id === "string" && typeof p.name === "string",
+        ),
+    )
+  )
+    throw new Error("The clubs response is incomplete.");
+  return result as Club[];
 }

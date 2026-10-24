@@ -1,27 +1,16 @@
-# Demo recording
+# Integrated demo script — target 110 seconds
 
-The [72-second recording](demo-preview.mp4) is a frontend fixture preview, not the final end-to-end submission. All fork numbers and the verdict in this preview are placeholders. The alternate event timeline and deployed AI agents are not yet present in the shared contract. Replace the recording once the live engine and agents are integrated.
+The existing `demo-preview.mp4` is the earlier 72-second placeholder UI preview. It is retained as an archive and must not be submitted as a recording of the integrated application.
 
-## Final recording outline (target 110 seconds)
+Run the API and viewer using `frontend/README.md`; confirm the **Live engine** badge.
 
-| Time | Show | Say |
+| Time | Show | Explain |
 |---|---|---|
-| 0–12 s | Match viewer and source badge | One decision can change the story of a match. Parallel Match lets a fan explore that possibility using synthetic football data. |
-| 12–30 s | Play, pause and select a flagged moment | Our match events drive the pitch, clock and statistics. Select a contestable moment to inspect the recorded call and its Law reference. |
-| 30–48 s | Make one typed change | We change one decision and branch from that state. We do not claim that the referee was wrong. |
-| 48–70 s | Both pitches playing from the divergence marker | Watch the original and alternate on the same clock. This alternate is one illustrative simulation, not a guaranteed future. |
-| 70–90 s | Curves, interval and precedent | Re-simulation measures an outcome shift. Season precedent adds context. The interface shows uncertainty and calls out disagreement. |
-| 90–103 s | Analyst view, club perspective | A casual viewer gets the story; an analyst can inspect the event, margin and model evidence. Your club changes the focus. |
-| 103–110 s | Working deployed solution and technology diagram | Briefly name only the Microsoft services actually running in the deployed version. |
+| 0–15 s | WES vs COP, m052, selected 56-minute penalty | “What if that penalty had not been given? Every event here is synthetic.” |
+| 15–35 s | Explore alternative; play both timelines | “The simulator restarts at the decision. The two pitches share a clock; this is one typical alternate path.” |
+| 35–55 s | WES shift and interval, then COP perspective | “Five hundred paired simulations estimate a change, not a guaranteed result. Each fan sees their own club's impact.” |
+| 55–75 s | Precedent and analyst detail | “Compare the simulation with 21 similar season moments. Observational precedent is different evidence and can disagree.” |
+| 75–95 s | Change a player: W10 off, W20 on, explore | “Fans can test their own managerial choices. If the interval includes zero, we say the effect is uncertain.” |
+| 95–110 s | Goal reversal or pressing control; return to split replay | “One match, several possible realities, with the assumptions and uncertainty visible.” |
 
-## Before the final take
-
-- Connect the real API, verify exact payload compatibility and receive actual alternate events.
-- Replace placeholder curves, rollout counts, intervals, verdict and history with measured data.
-- Verify agent narration and relevant Microsoft services with the deployment track; this frontend does not implement them.
-- Show uncertainty honestly. Do not present the two evidence sources as causally independent merely because they are displayed separately.
-- Use fictional clubs and players only, with no third-party footage, logos or music.
-- Capture a functioning product and keep the export under 120 seconds.
-- Upload the final video to the submission's chosen public video host and add its URL. No upload has been performed by this change.
-
-The draft recording uses direct browser captures of this interface, with explanatory captions and no music. The missing alternate replay is visible rather than fabricated.
+Uncached forks take several seconds and may be slower on the demo machine. Warm up the API and verify timings before recording. Do not describe the deterministic summary as an AI agent; add Jiawei's actual Foundry narration and historian evidence to the final submission recording when available. Do not claim fabricated fan interviews as validation.

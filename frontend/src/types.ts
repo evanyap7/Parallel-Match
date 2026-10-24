@@ -23,6 +23,7 @@ export interface MatchEvent {
   off?: string;
   color?: string;
   to?: string;
+  changes?: Change[];
 }
 export interface Match {
   match_id: string;
@@ -36,10 +37,19 @@ export interface MatchSummary {
   match_id: string;
   home?: string;
   away?: string;
+  story?: string | null;
 }
-export interface Change {
-  type: "flip_call";
-  call: string;
+export type Change =
+  | { type: "flip_call" }
+  | { type: "not_sent_off" }
+  | { type: "shot_outcome"; outcome: "goal" | "saved" }
+  | { type: "card"; card: "yellow" | "red" | null }
+  | { type: "substitution"; team?: string; off?: string; on?: string }
+  | { type: "tactics"; team: string; set: Record<string, number> };
+export interface Club {
+  code: string;
+  name: string;
+  squad: { id: string; name: string; pos: string; number: number }[];
 }
 export interface ForkRequest {
   match_id: string;
@@ -47,7 +57,8 @@ export interface ForkRequest {
   change: Change;
 }
 export interface Probability {
-  min: number;
+  minute: number;
+  min: string;
   home: number;
   draw: number;
   away: number;
@@ -55,7 +66,13 @@ export interface Probability {
 export interface ForkResult {
   placeholder?: boolean;
   note?: string;
-  request: ForkRequest;
+  match_id: string;
+  event_id: string;
+  change: Change;
+  description: string;
+  model_world: true;
+  diverged: boolean;
+  cached?: boolean;
   divergence: { event_id: string; step: number; t: number; min: string };
   moment: Partial<MatchEvent>;
   original: { final_score: Score; win_prob: Probability[] };
@@ -67,12 +84,17 @@ export interface ForkResult {
   };
   rollouts: number;
   outcome_shift: { home: number; draw: number; away: number };
-  uncertainty: { home_win_ci95: [number, number] };
+  uncertainty: {
+    shift_ci95: Record<"home" | "draw" | "away", [number, number]>;
+  };
   history: {
     n: number;
     description: string;
-    home_win_share: number;
+    attacking_team: string;
+    when_given: { n: number; win: number | null };
+    when_not_given: { n: number; win: number | null };
     agrees_with_simulation: boolean | null;
-  };
-  verdict: string;
+  } | null;
+  verdict?: string | null;
+  score_spread: { score: Score; share: number }[];
 }

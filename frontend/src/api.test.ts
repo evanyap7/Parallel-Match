@@ -3,6 +3,12 @@ import match from "../../fixtures/m012.json";
 import fork from "../../fixtures/fork_m012.json";
 import type { ForkRequest } from "./types";
 
+const request: ForkRequest = {
+  match_id: fork.match_id,
+  event_id: fork.event_id,
+  change: { type: "flip_call" },
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -10,6 +16,24 @@ afterEach(() => {
 });
 
 describe("live API adapter", () => {
+  it("preserves the engine's explanation when an intervention is rejected", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "https://example.invalid");
+    vi.resetModules();
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ detail: "no substitutions left" }), {
+            status: 422,
+          }),
+        ),
+    );
+    const api = await import("./api");
+    await expect(
+      api.getFork(request, new AbortController().signal),
+    ).rejects.toThrow("no substitutions left");
+  });
   it("uses the planned GET and POST endpoints with the exact shared request", async () => {
     vi.stubEnv("VITE_API_BASE_URL", "https://example.invalid/api/");
     vi.resetModules();
@@ -26,7 +50,7 @@ describe("live API adapter", () => {
     expect(api.sourceMode).toBe("api");
     await api.getMatches(signal);
     await api.getMatch("m012", signal);
-    await api.getFork(fork.request as ForkRequest, signal);
+    await api.getFork(request as ForkRequest, signal);
     expect(fetchMock.mock.calls.map((c) => c[0])).toEqual([
       "https://example.invalid/api/matches",
       "https://example.invalid/api/match/m012",
@@ -34,7 +58,7 @@ describe("live API adapter", () => {
     ]);
     expect(fetchMock.mock.calls[2][1]).toMatchObject({
       method: "POST",
-      body: JSON.stringify(fork.request),
+      body: JSON.stringify(request),
       headers: { "Content-Type": "application/json" },
     });
   });
@@ -47,7 +71,7 @@ describe("live API adapter", () => {
     vi.stubGlobal("fetch", fetchMock);
     const api = await import("./api");
     await expect(
-      api.getFork(fork.request as ForkRequest, new AbortController().signal),
+      api.getFork(request as ForkRequest, new AbortController().signal),
     ).rejects.toThrow("503");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -59,7 +83,7 @@ describe("live API adapter", () => {
     const api = await import("./api");
     await expect(
       api.getFork(
-        { ...fork.request, event_id: "different" } as ForkRequest,
+        { ...request, event_id: "different" } as ForkRequest,
         new AbortController().signal,
       ),
     ).rejects.toThrow("only covers");
