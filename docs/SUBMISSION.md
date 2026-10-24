@@ -13,8 +13,9 @@ The site must stay up and free to use until judging ends: **10 Nov, 11:59 pm PT*
 - [ ] Category chosen and named in the pitch (one category prize per project)
 - [x] Live link works (`./deploy/smoke.sh` all ok, 24 Oct)
 - [ ] Live link checked on a phone on mobile data
-- [ ] Hosting confirmed with `./deploy/deploy.sh status` (pm-api 2 vCPU, every
-  app min 1 replica, cost to 10 Nov inside the credit); output in `docs/deployment.md`
+- [x] Hosting confirmed with `./deploy/deploy.sh status` (pm-api 2 vCPU, every
+  app min 1 replica, about $44 to 10 Nov, inside the $100 credit); output in
+  `docs/deployment.md` (25 Oct)
 - [x] Foundry on: agents `/health` shows `agent-framework/foundry`, model
   `gpt-4.1-mini`, no model error; Narrator text is model-phrased (24 Oct)
 - [ ] Video under 2 minutes, public on YouTube or Vimeo, no copyrighted music
@@ -75,7 +76,8 @@ No login needed. Works on desktop and phone.
    precedent (fetched through the MCP server) and whether it agrees with the
    simulation, and the divergence log.
 6. Try another match and moment. Featured moments answer in about a second;
-   other moments are simulated live and take up to about 20 seconds.
+   other moments are simulated live: up to about 15 seconds for an early
+   moment, less for later ones.
 
 Service health, for the curious: https://pm-agents.agreeableflower-13af161d.japaneast.azurecontainerapps.io/health shows the model provider
 (Foundry) and the MCP connection. MCP endpoint (streamable HTTP):

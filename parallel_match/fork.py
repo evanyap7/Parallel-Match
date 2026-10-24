@@ -214,6 +214,12 @@ def _executor(workers: int):
 
 
 def default_workers() -> int:
+    # PM_FORK_WORKERS overrides the guess. In a container os.cpu_count() can
+    # report the vCPUs it was given (pm-api: 2), and "minus one" then leaves
+    # a single worker: a fresh early-match fork took ~32 s live instead of ~16.
+    env = os.environ.get("PM_FORK_WORKERS", "").strip()
+    if env.isdigit() and int(env) > 0:
+        return min(8, int(env))
     return max(1, min(8, (os.cpu_count() or 2) - 1))
 
 

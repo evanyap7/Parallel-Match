@@ -110,12 +110,13 @@ for the list of comparable moments if you want to show examples.
 6. [x] Host the front end (`dist/` as a Static Web App or a Container App) with
    `VITE_API_BASE_URL` set. This is the link the judges open. *(pm-web, nginx
    proxies `/agents`.)*
-7. [ ] pm-api on 2 vCPU (uncached forks ~25 s on 1). Keep every app at min 1
-   replica through 10 Nov; ~$45 of the $100 credit. *(pm-api seen at 2.0 vCPU /
-   4 GiB on 24 Oct; full check with `./deploy/deploy.sh status`, recorded in
-   `docs/deployment.md`.)*
-10. [ ] Agent panels fast: parallel Narrator and answer cache (replaces PR #9),
-   then redeploy agents and web from main.
+7. [x] pm-api on 2 vCPU (uncached forks ~25 s on 1). Keep every app at min 1
+   replica through 10 Nov; ~$45 of the $100 credit. *(Live check 25 Oct with
+   `./deploy/deploy.sh status`: pm-api 2.0 vCPU / 4 GiB, every app min 1,
+   about $44 to 10 Nov; output in `docs/deployment.md`. Fresh forks used one
+   worker; `PM_FORK_WORKERS=2` fixes that on the next `deploy.sh api`.)*
+10. [x] Agent panels fast: parallel Narrator and answer cache (replaces PR #9).
+   *(Live 25 Oct: agents and web deployed, smoke test all ok.)*
 8. [ ] Fabric: load the season and run the precedent query (`docs/fabric.md`),
    screenshot, or tell the team it is dropped.
 9. [ ] `docs/SUBMISSION.md` final (links in; category and Copilot/Fabric

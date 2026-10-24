@@ -127,8 +127,25 @@ estimate to the end of judging (10 Nov, 11:59 pm PT), and the time for a
 featured and a fresh fork. Paste its latest output here.
 
 ```
-(not yet recorded)
+Hosting check, 2026-10-24 16:07 UTC
+app                cpu  memory  min  max  release
+pm-web            0.25   0.5Gi    1    2  20261025000506
+pm-api             2.0     4Gi    1    2  20261024153124
+pm-agents          0.5     1Gi    1    2  20261025000319
+pm-history-mcp    0.25   0.5Gi    1    1  None
+warm: 3 vCPU, 6 GiB -> about $2.50/day; 17.7 days to 10 Nov 11:59 pm PT -> about $44
+credit balance: https://www.microsoftazuresponsorships.com/balance
+fresh fork (m001-0012, not precomputed): 32.463714s
+featured fork (m052-0715, precomputed): 1.056078s
 ```
+
+Every app keeps at least one warm replica, pm-api has 2 vCPU, and the estimate
+to the end of judging (about $44) is well inside the $100 student credit.
+The 32 s fresh fork was one rollout worker on 2 vCPU (`os.cpu_count() - 1`);
+`deploy.sh api` now sets `PM_FORK_WORKERS=2`, which halves it (measured 30.6 s
+with one worker and 15.9 s with two on 2 CPUs, for that minute-1 moment; later
+moments have less match left to play and are faster). Rerun `status` after the
+next `deploy.sh api` and paste the new output here.
 
 ## 3. Azure AI Foundry (the model behind the agents)
 

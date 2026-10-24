@@ -224,7 +224,8 @@ SIZE_MCP=(0.25 0.5Gi "$MIN_REPLICAS" 1)   # the Historian calls it on every card
 
 deploy_api() {          # simulator API: forks run rollouts in a process pool
   build "$API_IMAGE" Dockerfile || return 1
-  upsert pm-api "$API_IMAGE" 8000 "${SIZE_API[@]}"
+  # One rollout worker per vCPU (see parallel_match/fork.py default_workers).
+  upsert pm-api "$API_IMAGE" 8000 "${SIZE_API[@]}" PM_FORK_WORKERS="${SIZE_API[0]%.*}"
 }
 
 deploy_agents() {
