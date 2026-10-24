@@ -52,7 +52,9 @@ def build_facts(match: dict | None, event: dict | None, block: dict) -> dict:
     for key in ("history_shift_pts", "sim_shift_pts"):
         if facts[key] is not None:
             facts[key + "_abs"] = abs(facts[key])
-    # keep the raw block for grounding checks
+    # The precedent block itself (same shape as /fork's history); the front
+    # end reads facts.history. Also the raw truth for grounding checks.
+    facts["history"] = block
     facts["_truth"] = canonical(block)
     return facts
 

@@ -103,6 +103,11 @@ class HistorianTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertEqual(self.block[key], self.fork["history"][key])
 
+    def test_facts_carry_the_history_block(self):
+        # frontend/src/components/AgentPanels.tsx reads facts.history.when_given
+        result = historian.run(None, None, self.block)
+        self.assertEqual(result["facts"]["history"]["when_given"], self.block["when_given"])
+
     def test_phrases_only_computed_numbers(self):
         result = historian.run(None, None, self.block)
         self.assertEqual(check_output(result["text"], result["facts"]), [])
