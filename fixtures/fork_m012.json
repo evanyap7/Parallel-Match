@@ -1,0 +1,50 @@
+{
+  "placeholder": true,
+  "note": "Shape of a POST /fork response. All numbers are placeholders for front-end and agent work, not simulator output.",
+  "request": {
+    "match_id": "m012",
+    "event_id": "m012-0148",
+    "change": {"type": "flip_call", "call": "no_foul"}
+  },
+  "divergence": {"event_id": "m012-0148", "step": 139, "t": 563, "min": "10"},
+  "moment": {
+    "type": "foul",
+    "team": "HAR",
+    "player": "H7",
+    "victim": "N11",
+    "contact": 0.549,
+    "margin": -0.006,
+    "call": "free_kick",
+    "law": "Law 12: Fouls and Misconduct (direct free kick offences)"
+  },
+  "original": {
+    "final_score": [2, 0],
+    "win_prob": [
+      {"min": 0, "home": 0.46, "draw": 0.27, "away": 0.27},
+      {"min": 10, "home": 0.47, "draw": 0.27, "away": 0.26},
+      {"min": 60, "home": 0.78, "draw": 0.15, "away": 0.07},
+      {"min": 90, "home": 1.0, "draw": 0.0, "away": 0.0}
+    ]
+  },
+  "alternate": {
+    "final_score": [1, 1],
+    "win_prob": [
+      {"min": 0, "home": 0.46, "draw": 0.27, "away": 0.27},
+      {"min": 10, "home": 0.47, "draw": 0.27, "away": 0.26},
+      {"min": 60, "home": 0.41, "draw": 0.31, "away": 0.28},
+      {"min": 90, "home": 0.0, "draw": 1.0, "away": 0.0}
+    ],
+    "timeline_note": "events array of one typical alternate timeline, same schema as docs/event-schema.md",
+    "timeline": []
+  },
+  "rollouts": 500,
+  "outcome_shift": {"home": -0.12, "draw": 0.07, "away": 0.05},
+  "uncertainty": {"home_win_ci95": [0.34, 0.46]},
+  "history": {
+    "n": 14,
+    "description": "comparable moments in this season: borderline foul, middle third, first half",
+    "home_win_share": 0.36,
+    "agrees_with_simulation": true
+  },
+  "verdict": "Turning point at 10'. With no foul given, the early free kick does not happen and the later goal chain changes. Model world, not a prediction."
+}
