@@ -46,9 +46,25 @@ def moment_facts(match: dict, event: dict) -> dict:
     return {k: v for k, v in facts.items() if v is not None}
 
 
+def _alternate_call(fork_response: dict, req: dict) -> str | None:
+    """The call in the alternate timeline: the requested call if given, else
+    the call on the re-judged moment the fork engine returns."""
+    call = (req.get("change") or {}).get("call")
+    if call:
+        return call
+    alt = fork_response.get("alternate_moment") or []
+    if isinstance(alt, dict):
+        alt = [alt]
+    return next((e["call"] for e in alt if e.get("call")), None)
+
+
 def fork_facts(fork_response: dict) -> dict:
-    """Facts from a POST /fork response (see fixtures/fork_m012.json)."""
-    req = fork_response.get("request", {})
+    """Facts from a POST /fork response (see fixtures/fork_m052.json).
+
+    The current response carries match_id / event_id / change at the top
+    level; older drafts nested them under "request", which is still read.
+    """
+    req = fork_response.get("request") or fork_response
     div = fork_response.get("divergence", {})
     moment = fork_response.get("moment", {})
     original = fork_response.get("original", {})
@@ -62,13 +78,21 @@ def fork_facts(fork_response: dict) -> dict:
         "match_id": req.get("match_id", ""),
         "event_id": req.get("event_id", ""),
         "change": req.get("change", {}),
+        "description": fork_response.get("description", ""),
         "divergence_min": div.get("min", ""),
         "moment_type": moment.get("type", ""),
         "moment_call": moment.get("call"),
         "moment_contact": moment.get("contact"),
         "moment_margin": moment.get("margin"),
+        "alternate_call": _alternate_call(fork_response, req),
         "original_final_score": list(original.get("final_score", [0, 0])),
         "alternate_final_score": list(alternate.get("final_score", [0, 0])),
+        # Rollout shares from the fork point (home/draw/away). These are the
+        # outcome numbers to phrase; the last win-probability point is ~0 or
+        # ~1 at full time and says nothing about the change.
+        "original_outcome": original.get("outcome"),
+        "alternate_outcome": alternate.get("outcome"),
+        "rollouts": fork_response.get("rollouts"),
         "original_last_winprob": _last_winprob(original),
         "alternate_last_winprob": _last_winprob(alternate),
         "placeholder": bool(fork_response.get("placeholder")),
