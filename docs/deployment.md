@@ -17,25 +17,47 @@ demo never depends on credits or a model being up.
 
 ## 0. Prerequisites (once)
 
+Copy `.env.example` to `.env` (git-ignored) and fill in the subscription,
+resource group, location and a globally unique registry **name**. Then:
+
 ```bash
 az login
-az account set --subscription <AZURE_SUBSCRIPTION_ID>
-az extension add --name containerapp --upgrade
-az group create -n rg-the-home-dugout -l southeastasia
-az acr create -n <registry-name, globally unique> -g rg-the-home-dugout --sku Basic
+./deploy/deploy.sh setup     # providers, resource group, Basic registry, environment
 ```
 
-Copy `.env.example` to `.env` (git-ignored) and fill in the subscription,
-resource group, location and registry **name**. `deploy.sh` reads `.env`
-itself and creates the `pm-env` Container Apps environment if it is missing.
+**Region.** Azure for Students subscriptions only allow a few regions (ours:
+indonesiacentral, japaneast, koreacentral, eastasia, uaenorth). We use
+`japaneast`: Container Apps and Foundry OpenAI models are both available there,
+and everything sits in one region.
 
 Apps pull from the registry with their own system-assigned managed identity
 (`--registry-identity system`), so the registry needs no admin user and no
 password ends up anywhere.
 
-**Credits check**: Cost Management + Billing in the portal. Container Apps at
-`MIN_REPLICAS=1` and Basic ACR cost cents per hour; Foundry calls are the only
-real spend, and template mode uses none. Set `MIN_REPLICAS=0` after judging.
+## Cost (Azure for Students, $100 credit)
+
+The site must stay up and free to use until judging ends (**10 Nov 2026,
+11:59 pm PT**), about 17 days from deploy. Container Apps bills a warm but idle
+replica at about $0.000003 per vCPU-second and per GiB-second, and gives each
+subscription a monthly free grant (180,000 vCPU-s, 360,000 GiB-s, 2M requests).
+
+| Item | Size | Warm? | ~per day |
+|---|---|---|---|
+| pm-api | 1 vCPU, 2 GiB | min 1 | $0.78 |
+| pm-agents | 0.5 vCPU, 1 GiB | min 1 | $0.39 |
+| pm-web | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
+| pm-history-mcp | 0.25 vCPU, 0.5 GiB | scales to zero | ~$0 |
+| Registry (Basic) | | | $0.17 |
+| Foundry (gpt-4o-mini) | per call | | cents |
+
+About **$1.5/day, ~$26 to 10 Nov**, before the free grant; active request
+time and image builds add a little. No Log Analytics workspace is created
+(`--logs-destination none`); stream logs with
+`az containerapp logs show -n pm-agents -g <rg> --follow`.
+
+Check the remaining credit at https://www.microsoftazuresponsorships.com/balance.
+After judging: `./deploy/deploy.sh pause` (scale to zero, keeps URLs), and
+after winners are announced (20 Nov) `./deploy/deploy.sh teardown`.
 
 ## 1. First hour: hello-world
 
@@ -73,9 +95,10 @@ API=http://localhost:8000 AGENTS=http://localhost:8001 \
 
 (MCP locally: `PM_MCP_HTTP=1 PM_MCP_HOST=0.0.0.0 python -m mcp_history.server`.)
 
-Sizing: `pm-api` gets 2 vCPU / 4 GiB because uncached forks run rollouts in a
-process pool; the agents and MCP apps replay the 90-match season once at
-startup (a few seconds), which is why `MIN_REPLICAS` defaults to 1.
+Sizing: featured forks are precomputed; an uncached fork takes about 9 s on
+1 vCPU. The agents and MCP apps replay the 90-match season once at startup
+(about 6 s, ~140 MB), which is why web, api and agents stay warm. MCP scales to
+zero, so its first call after a quiet spell takes ~15 s.
 
 The agents API allows any origin (`PM_CORS_ORIGINS=*`, no cookies are used);
 set it to the `pm-web` URL to lock it down. The simulator API already allows
@@ -83,10 +106,11 @@ any origin.
 
 ## 3. Azure AI Foundry (the model behind the agents)
 
-1. Portal: Azure AI Foundry, create a project (or use the hackathon's) and
-   deploy a model (e.g. `gpt-4o-mini`). Note the **project endpoint**
-   (`https://<res>.services.ai.azure.com/api/projects/<id>`), the **model
-   deployment name**, and the Foundry resource's **resource ID**.
+1. `./deploy/deploy.sh foundry-create` creates the Foundry resource, a
+   project and a `gpt-4o-mini` deployment (GlobalStandard, 20K tokens/min),
+   then prints the four `.env` lines below. If a step fails (older CLI, or no
+   quota for the model in the region), do that step at ai.azure.com, or set
+   `FOUNDRY_MODEL=gpt-4.1-mini` and rerun.
 2. In `.env`:
 
    ```bash
