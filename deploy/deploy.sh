@@ -231,7 +231,7 @@ deploy_agents() {
   upsert pm-agents "$AGENTS_IMAGE" 8000 "${SIZE_AGENTS[@]}" \
     PM_SERVICE=api PM_AGENT_BACKEND="$BACKEND" AZURE_CLIENT_ID="$IDENTITY_CLIENT_ID" \
     AZURE_AI_FOUNDRY_PROJECT_ENDPOINT="${AZURE_AI_FOUNDRY_PROJECT_ENDPOINT:-}" \
-    AZURE_AI_FOUNDRY_MODEL="${AZURE_AI_FOUNDRY_MODEL:-gpt-4o-mini}" \
+    AZURE_AI_FOUNDRY_MODEL="${AZURE_AI_FOUNDRY_MODEL:-gpt-4.1-mini}" \
     PM_HISTORY_MCP_URL="$(mcp_url)"
   if [[ "$BACKEND" == "foundry" ]]; then setup_foundry; fi
 }
@@ -293,7 +293,8 @@ setup_foundry() {
 # the model in this region), do that step in the portal at ai.azure.com.
 foundry_create() {
   local name="${FOUNDRY_NAME:-${ACR_NAME}-ai}" project="${FOUNDRY_PROJECT:-pm-project}"
-  local model="${FOUNDRY_MODEL:-gpt-4o-mini}" version="${FOUNDRY_MODEL_VERSION:-}"
+  local model="${FOUNDRY_MODEL:-}" version="${FOUNDRY_MODEL_VERSION:-}"
+  if [[ -n "$version" && -z "$model" ]]; then echo "FOUNDRY_MODEL_VERSION needs FOUNDRY_MODEL" >&2; exit 1; fi
   register Microsoft.CognitiveServices
   az cognitiveservices account show -n "$name" -g "$RESOURCE_GROUP" > /dev/null 2>&1 || {
     log "creating Foundry resource $name in $LOCATION"
@@ -307,10 +308,19 @@ foundry_create() {
       --project-name "$project" -l "$LOCATION" > /dev/null
   }
   if [[ -z "$version" ]]; then
-    version="$(az cognitiveservices account list-models -n "$name" -g "$RESOURCE_GROUP" \
-      --query "[?name=='$model' && format=='OpenAI'].version | sort(@) | [-1]" -o tsv)"
+    # First model in the preference list that this region offers as
+    # GlobalStandard and that is not being retired (e.g. gpt-4o-mini
+    # 2024-07-18 is "deprecating" and refuses new deployments). Fast,
+    # non-reasoning models first: the agents give each call 8 s.
+    local candidate
+    for candidate in ${FOUNDRY_MODEL:-gpt-4.1-mini gpt-4.1-nano gpt-5-mini gpt-5-nano gpt-4o-mini}; do
+      version="$(az cognitiveservices account list-models -n "$name" -g "$RESOURCE_GROUP" \
+        --query "[?name=='$candidate' && format=='OpenAI' && lifecycleStatus!='Deprecating' && lifecycleStatus!='Deprecated' && skus[?name=='GlobalStandard']].version | sort(@) | [-1]" \
+        -o tsv 2>/dev/null)"
+      if [[ -n "$version" ]]; then model="$candidate"; break; fi
+    done
   fi
-  [[ -n "$version" ]] || { echo "model $model is not offered in $LOCATION; set FOUNDRY_MODEL (e.g. gpt-4.1-mini)" >&2; exit 1; }
+  [[ -n "$version" ]] || { echo "no current model found in $LOCATION; list them with: az cognitiveservices account list-models -n $name -g $RESOURCE_GROUP -o table" >&2; exit 1; }
   az cognitiveservices account deployment show -n "$name" -g "$RESOURCE_GROUP" \
       --deployment-name "$model" > /dev/null 2>&1 || {
     log "deploying $model $version (GlobalStandard, 20K tokens/min)"

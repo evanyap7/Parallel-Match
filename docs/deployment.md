@@ -61,7 +61,7 @@ subscription a monthly free grant (180,000 vCPU-s, 360,000 GiB-s, 2M requests).
 | pm-web | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
 | pm-history-mcp | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
 | Registry (Basic) | | | $0.17 |
-| Foundry (gpt-4o-mini) | per call | | cents |
+| Foundry (gpt-4.1-mini) | per call | | cents |
 
 About **$2.5/day, ~$45 to 10 Nov**, before the free grant; active request
 time and image builds add a little. No Log Analytics workspace is created
@@ -122,7 +122,10 @@ any origin.
 ## 3. Azure AI Foundry (the model behind the agents)
 
 1. `./deploy/deploy.sh foundry-create` creates the Foundry resource, a
-   project and a `gpt-4o-mini` deployment (GlobalStandard, 20K tokens/min),
+   project and a model deployment (GlobalStandard, 20K tokens/min): the first
+   of gpt-4.1-mini, gpt-4.1-nano, gpt-5-mini, gpt-5-nano that the region
+   offers and that is not being retired (gpt-4o-mini 2024-07-18 now refuses
+   new deployments),
    then prints the four `.env` lines below. If a step fails (older CLI, or no
    quota for the model in the region), do that step at ai.azure.com, or set
    `FOUNDRY_MODEL=gpt-4.1-mini` and rerun.
@@ -131,7 +134,7 @@ any origin.
    ```bash
    PM_AGENT_BACKEND=foundry
    AZURE_AI_FOUNDRY_PROJECT_ENDPOINT=https://<res>.services.ai.azure.com/api/projects/<id>
-   AZURE_AI_FOUNDRY_MODEL=gpt-4o-mini
+   AZURE_AI_FOUNDRY_MODEL=gpt-4.1-mini
    AZURE_AI_FOUNDRY_RESOURCE_ID=/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<res>
    ```
 

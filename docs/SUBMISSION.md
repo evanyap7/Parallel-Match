@@ -42,7 +42,7 @@ guardrails. All data is synthetic. It runs on Azure Container Apps.
 
 ## Microsoft technologies used
 
-- **Azure AI Foundry** (model `gpt-4o-mini`) via **Microsoft Agent Framework**:
+- **Azure AI Foundry** (model: as printed by `deploy.sh foundry-create`, normally `gpt-4.1-mini`) via **Microsoft Agent Framework**:
   Narrator, Law Explainer, Historian, Intervention Parser (`agents/`)
 - **MCP**: `history_query` / `season_summary` server on Container Apps; the
   Historian fetches its facts through it (`mcp_history/`, `agents/history_client.py`)
