@@ -139,7 +139,8 @@ any origin.
    ```
 
 3. `./deploy/deploy.sh agents`. With `foundry` selected it also grants
-   `pm-identity` the **Azure AI User** role on the Foundry resource (needs
+   `pm-identity` the **Azure AI User** role on the Foundry resource, or
+   **Cognitive Services OpenAI User** where the tenant has no Azure AI User role (needs
    Owner or User Access Administrator there; otherwise it prints the portal
    steps). Role assignments can take a few minutes to apply.
 4. `curl https://pm-agents.<env-domain>/health` shows `provider`,

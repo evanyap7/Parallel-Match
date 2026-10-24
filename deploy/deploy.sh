@@ -119,10 +119,11 @@ grant() {
     log "granting $2 to $IDENTITY_NAME"
     for _ in 1 2 3 4 5 6; do   # a new identity can take a minute to replicate
       if az role assignment create --assignee-object-id "$1" --assignee-principal-type ServicePrincipal \
-           --role "$2" --scope "$3" > /dev/null 2>&1; then return 0; fi
+           --role "$2" --scope "$3" > /dev/null 2>"${TMPDIR:-/tmp}/pm-grant.err"; then return 0; fi
       sleep 10
     done
-    echo "could not grant $2 on $3; grant it to $IDENTITY_NAME in the portal (Access control)" >&2
+    echo "could not grant $2 on $3:" >&2
+    tail -3 "${TMPDIR:-/tmp}/pm-grant.err" >&2
     return 1
   fi
 }
@@ -280,11 +281,20 @@ mcp_url() {
 # User Access Administrator) there, which an Azure for Students owner has.
 setup_foundry() {
   if [[ -n "${AZURE_AI_FOUNDRY_RESOURCE_ID:-}" ]]; then
-    grant "$IDENTITY_PRINCIPAL" "Azure AI User" "$AZURE_AI_FOUNDRY_RESOURCE_ID"
+    # "Azure AI User" is the Foundry role, but not every tenant has it yet;
+    # "Cognitive Services OpenAI User" covers calls to OpenAI model deployments.
+    local role
+    for role in "Azure AI User" "Cognitive Services OpenAI User"; do
+      if az role definition list --name "$role" --query "[0].name" -o tsv 2>/dev/null | grep -q .; then
+        grant "$IDENTITY_PRINCIPAL" "$role" "$AZURE_AI_FOUNDRY_RESOURCE_ID" && return 0
+      fi
+    done
+    echo "could not grant a Foundry role to $IDENTITY_NAME; see docs/deployment.md section 3" >&2
+    return 1
   else
     log "set AZURE_AI_FOUNDRY_RESOURCE_ID to grant access automatically, or in the portal:"
-    log "  Foundry resource > Access control (IAM) > Add role assignment > Azure AI User >"
-    log "  Managed identity > $IDENTITY_NAME"
+    log "  Foundry resource > Access control (IAM) > Add role assignment >"
+    log "  Cognitive Services OpenAI User > Managed identity > $IDENTITY_NAME"
   fi
 }
 
