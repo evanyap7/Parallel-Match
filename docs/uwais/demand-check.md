@@ -22,7 +22,7 @@ Record an anonymous participant code, the actual incident they recall, their nex
 | P4 | Not collected | Not tested | Not tested | Not collected |
 | P5 | Not collected | Not tested | Not tested | Not collected |
 
-## Fictional positive examples — writing examples only
+## Fictional positive examples: writing examples only
 
 These are invented examples, not participant quotes, interviews, testimonials or evidence of demand. They must not appear in the pitch as research results.
 

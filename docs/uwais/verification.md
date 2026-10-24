@@ -1,4 +1,4 @@
-# Integration verification — 24 October 2026
+# Integration verification: 24 October 2026
 
 Evan's main commit `fd05be0` was merged into `uwais/frontend-match-viewer` without Git conflicts. User approved adapting the frontend to the completed backend contract. Integration edits stay in `frontend/` and `docs/uwais/`; backend code and shared fixtures are preserved.
 

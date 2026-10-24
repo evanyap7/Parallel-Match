@@ -1,4 +1,4 @@
-# Integrated demo script — target 110 seconds
+# Integrated demo script: target 110 seconds
 
 The existing `demo-preview.mp4` is the earlier 72-second placeholder UI preview. It is retained as an archive and must not be submitted as a recording of the integrated application.
 

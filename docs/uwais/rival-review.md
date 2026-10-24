@@ -1,4 +1,4 @@
-# Public demo review — 24 October 2026
+# Public demo review: 24 October 2026
 
 This is a bounded presentation review, not a ranking of all entries. No rival source or assets were copied.
 
