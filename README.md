@@ -60,6 +60,33 @@ seeds; every match regenerates exactly from its seed. Five story matches were pl
 by searching seeds for a two-goal comeback, an early red card, a stoppage-time winner,
 a borderline penalty and a tight late offside. Still generated, just selected.
 
+## Agents (Narrator, Law Explainer, Historian, Intervention Parser)
+
+Phrasing agents on the Microsoft stack (Agent Framework + Azure AI Foundry,
+MCP, Azure Container Apps), built against the contract fixtures:
+
+```bash
+pip install -e ".[agents,mcp]"
+uvicorn agents.server:app --port 8001        # REST: /narrate /explain /precedents /parse
+python -m mcp_history.server                 # MCP tools: history_query, season_summary
+```
+
+They run dependency-free on deterministic template phrasing by default and
+switch to a Foundry model with `PM_AGENT_BACKEND=foundry`. All numbers and
+all moment-finding stay in plain code; guardrails enforce neutrality (never
+"the referee got it wrong") and factual grounding on every output. See
+`docs/agents.md` and `docs/deployment.md`.
+
+## Front end (React match viewer)
+
+Uwais's viewer lives in `frontend/` (React + Vite + SVG pitch). It runs on the
+repository fixtures by default and against the live API when `VITE_API_BASE_URL`
+is set. See `frontend/README.md`.
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
 ## Generator design
 
 - **Event level, not physics.** About 1,200 events per match: passes, dribbles, tackles,
@@ -82,8 +109,15 @@ a borderline penalty and a tight late offside. Still generated, just selected.
   (fictional league), `state.py`, `rng.py`, `fork.py` (what-if engine), `winprob.py`,
   `season.py`, `history.py` (precedent), `api.py` (FastAPI), `realism.py`, `cli.py`
 - `parallel_match/data/` season fixtures, win-probability table, precomputed forks
-- `tests/` determinism, state copy, rules, fork engine, API, realism
-- `docs/` event schema, API, history query for Fabric, build plan
-- `fixtures/` sample match and fork responses for front-end work
+- `agents/` phrasing agents + FastAPI service; `mcp_history/` season history
+  query + MCP server; `tools/make_dev_season.py` dev-season generator
+- `frontend/` React match viewer (Uwais)
+- `tests/` determinism, state copy, rules, fork engine, API, realism,
+  agents, guardrails, history store
+- `docs/` event schema, API, history query for Fabric, build plan, `agents.md`,
+  `deployment.md` (Azure runbook), `uwais/` demand check, demo script, rival review
+- `fixtures/` sample match and fork responses for front-end work;
+  `data/dev_season/` ten generated matches for the Historian (dev stand-in for the real season)
+- `deploy/` Container Apps deploy script, agents Dockerfile, hello-world smoke app
 - `reports/realism_v1.md` latest realism report
-- `Dockerfile` the API image for Azure Container Apps
+- `Dockerfile` the simulator API image for Azure Container Apps

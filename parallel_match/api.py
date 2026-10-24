@@ -52,6 +52,10 @@ def _history_rows() -> list[dict]:
 
 
 def change_key(change: dict) -> str:
+    # flip_call is fully determined by the moment; the agents' parser adds the
+    # target call ("no_foul", "onside"), which must not split the cache.
+    if change.get("type") == "flip_call":
+        change = {"type": "flip_call"}
     return hashlib.sha1(json.dumps(change, sort_keys=True).encode()).hexdigest()[:10]
 
 

@@ -5,6 +5,18 @@ description = "Seeded, forkable, event-level football simulator with synthetic d
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+# simulator REST API (parallel_match/api.py)
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+# agents REST API (agents/server.py)
+agents = ["fastapi>=0.110", "uvicorn>=0.29"]
+# MCP history server (mcp_history/server.py); 1.x and 2.x both supported
+mcp = ["mcp>=1.2"]
+# Microsoft Agent Framework on Azure AI Foundry (agents/provider.py).
+# The metapackage brings the Foundry client via agent-framework-core[all].
+foundry = ["agent-framework>=1.0", "azure-identity>=1.16"]
+dev = ["fastapi>=0.110", "uvicorn>=0.29", "mcp>=1.2", "httpx"]
+
 [project.scripts]
 parallel-match = "parallel_match.cli:main"
 
@@ -12,11 +24,8 @@ parallel-match = "parallel_match.cli:main"
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[project.optional-dependencies]
-api = ["fastapi>=0.110", "uvicorn>=0.29"]
-
 [tool.setuptools]
-packages = ["parallel_match"]
+packages = ["parallel_match", "agents", "mcp_history"]
 
 [tool.setuptools.package-data]
 parallel_match = ["data/*.json", "data/forks/*/*.json"]
