@@ -53,6 +53,19 @@ class Rng:
         return self.u() < p
 
 
+def key_of(*keys: int) -> int:
+    """Precompute a 64-bit key; pair with keyed_unit for one-mix lookups."""
+    h = 0x6A09E667F3BCC909
+    for k in keys:
+        h = _mix(h ^ (k & _M))
+    return h
+
+
+def keyed_unit(key: int, n: int) -> float:
+    """Fast stateless uniform for (key, n): a single mix."""
+    return (_mix((key + n * _GOLDEN) & _M) >> 11) / _TWO53
+
+
 def pick_index(weights, r: float) -> int:
     """Pick an index proportionally to weights using a pre-drawn uniform r."""
     total = sum(weights)

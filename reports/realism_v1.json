@@ -1,14 +1,14 @@
 {
   "matches": 360,
   "base_seed": 1000,
-  "seconds": 62.12,
-  "matches_per_sec": 5.8,
-  "home_pass_share": 0.51,
+  "seconds": 22.08,
+  "matches_per_sec": 16.31,
+  "home_pass_share": 0.509,
   "metrics": [
     {
       "name": "goals",
       "description": "goals per match",
-      "value": 3.0,
+      "value": 2.781,
       "lo": 2.4,
       "hi": 3.2,
       "ok": true
@@ -16,7 +16,7 @@
     {
       "name": "shots",
       "description": "shots per match",
-      "value": 27.558,
+      "value": 27.433,
       "lo": 20.0,
       "hi": 28.0,
       "ok": true
@@ -24,7 +24,7 @@
     {
       "name": "shots_on_target",
       "description": "shots on target per match",
-      "value": 9.414,
+      "value": 9.297,
       "lo": 7.0,
       "hi": 11.0,
       "ok": true
@@ -32,7 +32,7 @@
     {
       "name": "conversion",
       "description": "goals per shot",
-      "value": 0.109,
+      "value": 0.101,
       "lo": 0.09,
       "hi": 0.13,
       "ok": true
@@ -40,7 +40,7 @@
     {
       "name": "passes",
       "description": "passes attempted per match",
-      "value": 793.739,
+      "value": 795.425,
       "lo": 700.0,
       "hi": 1050.0,
       "ok": true
@@ -56,7 +56,7 @@
     {
       "name": "fouls",
       "description": "fouls given per match",
-      "value": 24.367,
+      "value": 24.431,
       "lo": 18.0,
       "hi": 26.0,
       "ok": true
@@ -64,7 +64,7 @@
     {
       "name": "yellows",
       "description": "yellow cards per match",
-      "value": 3.214,
+      "value": 3.203,
       "lo": 2.8,
       "hi": 4.8,
       "ok": true
@@ -72,7 +72,7 @@
     {
       "name": "reds",
       "description": "red cards per match",
-      "value": 0.064,
+      "value": 0.078,
       "lo": 0.03,
       "hi": 0.25,
       "ok": true
@@ -80,7 +80,7 @@
     {
       "name": "corners",
       "description": "corners per match",
-      "value": 10.333,
+      "value": 10.328,
       "lo": 8.0,
       "hi": 12.0,
       "ok": true
@@ -88,7 +88,7 @@
     {
       "name": "offsides",
       "description": "offsides given per match",
-      "value": 4.381,
+      "value": 4.522,
       "lo": 2.0,
       "hi": 5.0,
       "ok": true
@@ -96,7 +96,7 @@
     {
       "name": "penalties",
       "description": "penalties awarded per match",
-      "value": 0.189,
+      "value": 0.253,
       "lo": 0.15,
       "hi": 0.45,
       "ok": true
@@ -104,7 +104,7 @@
     {
       "name": "home_win",
       "description": "share of home wins",
-      "value": 0.453,
+      "value": 0.419,
       "lo": 0.4,
       "hi": 0.5,
       "ok": true
@@ -112,7 +112,7 @@
     {
       "name": "draw",
       "description": "share of draws",
-      "value": 0.2,
+      "value": 0.239,
       "lo": 0.2,
       "hi": 0.3,
       "ok": true
@@ -120,7 +120,7 @@
     {
       "name": "events",
       "description": "events per match (project spec)",
-      "value": 1212.089,
+      "value": 1214.225,
       "lo": 1000.0,
       "hi": 1500.0,
       "ok": true
@@ -128,7 +128,7 @@
     {
       "name": "subs",
       "description": "substitutions per match",
-      "value": 6.819,
+      "value": 6.811,
       "lo": 6.0,
       "hi": 10.0,
       "ok": true

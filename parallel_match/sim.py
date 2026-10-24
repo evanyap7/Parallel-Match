@@ -11,7 +11,13 @@ import math
 from dataclasses import dataclass
 
 from . import rules
-from .rng import Rng, hash_unit, pick_index
+from .rng import _GOLDEN, _M, Rng, _mix, hash_unit, key_of, pick_index
+
+_INV21 = 1.0 / (1 << 21)
+
+
+def _mix64(z):
+    return _mix(z & _M)
 from .rules import LAWS, PITCH_L, PITCH_W, GOAL_Y
 from .schema import Event
 from .state import MatchState
@@ -139,11 +145,12 @@ def simulate(home: Club, away: Club, seed: int, match_id: str = "m000") -> Match
 
 
 class _Step:
-    __slots__ = ("ctx", "st", "rng", "events", "dt", "_pos", "_line")
+    __slots__ = ("ctx", "st", "rng", "jkey", "events", "dt", "_pos", "_line")
 
     def __init__(self, ctx: Context, st: MatchState):
         self.ctx, self.st = ctx, st
         self.rng = Rng(st.seed, st.step)
+        self.jkey = key_of(st.seed, st.step, 0x5107)  # position jitter for this step
         self.events: list[Event] = []
         self.dt = 0.0
         self._pos = [None, None]
@@ -196,6 +203,13 @@ class _Step:
     def pid(self, t, i):
         return self.player(t, i).id
 
+    def forced(self, key, default):
+        """The fork's override for this step's decision `key`, if any."""
+        f = self.st.force
+        if f is not None and f[0] == self.st.step and f[1] == key:
+            return f[2]
+        return default
+
     # ---- derived positions ----------------------------------------------
 
     def positions(self, t):
@@ -221,24 +235,30 @@ class _Step:
         k = 0.30 if has_ball else 0.28 + 0.25 * press
         push = 5.0 * self.tact(t, "attack") if has_ball else -6.0 * (1.0 - press)
         out = []
+        key = self.jkey
+        hi_a, hi_y = PITCH_L - 1.0, PITCH_W - 1.0
         for slot, idx in enumerate(st.on[t]):
             if idx < 0:
                 continue
             role, sx, sy = form[slot]
-            j1 = hash_unit(st.seed, st.step, t, slot, 1) - 0.5
-            j2 = hash_unit(st.seed, st.step, t, slot, 2) - 0.5
+            # One hash per player, split into three 21-bit uniforms.
+            h = _mix64(key + (t * 16 + slot) * _GOLDEN)
+            j1 = (h & 0x1FFFFF) * _INV21 - 0.5
+            j2 = ((h >> 21) & 0x1FFFFF) * _INV21 - 0.5
             if role == "GK":
                 a = sx + 0.06 * (bax - sx)
                 y = GOAL_Y + 0.15 * (by - GOAL_Y)
             elif has_ball and role == "FWD":
                 # Forwards play on the shoulder of the defensive line.
-                u = hash_unit(st.seed, st.step, t, slot, 3)
+                u = ((h >> 42) & 0x1FFFFF) * _INV21
                 a = self.offside_line(t) + (u - FWD_LINE_BIAS) * FWD_LINE_SPREAD
                 y = sy + 0.22 * (by - sy) + 6.0 * j2
             else:
                 a = sx + k * (bax - sx) + push + 4.0 * j1
                 y = sy + 0.22 * (by - sy) + 4.0 * j2
-            out.append((idx, _clamp(a, 1.0, PITCH_L - 1.0), _clamp(y, 1.0, PITCH_W - 1.0), role))
+            a = 1.0 if a < 1.0 else hi_a if a > hi_a else a
+            y = 1.0 if y < 1.0 else hi_y if y > hi_y else y
+            out.append((idx, a, y, role))
         return out
 
     def pick_near(self, t, ax, y, r, exclude=(), roles=None, scale=6.0):
@@ -276,6 +296,9 @@ class _Step:
 
     def run(self) -> list[Event]:
         st = self.st
+        pre = self.forced("pre", None)
+        if pre is not None:
+            self.apply_pre(pre)
         if st.t >= st.half_end[st.period - 1]:
             self.end_period()
         elif st.restart is not None:
@@ -313,6 +336,34 @@ class _Step:
             self.emit("full_time")
             st.finished = True
 
+    # ---- fork pre-actions ------------------------------------------------
+
+    def apply_pre(self, pre):
+        """State changes a fork makes at the start of its step. Consumes no
+        random draws, so the rest of the step stays paired with the original."""
+        st = self.st
+        kind, t = pre["kind"], pre["team"]
+        if kind in ("sub", "unavailable"):
+            off, on = pre["off"], pre["on"]
+            slot = st.on[t].index(off)
+            st.on[t][slot] = on
+            st.played[t][on] = True
+            if kind == "sub":
+                st.subs[t] += 1
+            if st.poss == t and st.carrier == off:
+                st.carrier = on
+            self._pos = [None, None]
+            self._line = [None, None]
+            self.emit("substitution" if kind == "sub" else "lineup_change", t, on,
+                      off=self.pid(t, off), law=LAWS["substitution"])
+        elif kind == "tactics":
+            st.tactics[t].update(pre["set"])
+            self._pos = [None, None]
+            self._line = [None, None]
+            self.emit("tactical_change", t, None, set=dict(pre["set"]))
+        else:
+            raise ValueError(f"unknown pre-action {kind!r}")
+
     # ---- substitutions ---------------------------------------------------
 
     def maybe_sub(self, t, at_half_time=False):
@@ -340,6 +391,10 @@ class _Step:
             return
         same = [i for i in bench if squad[i].pos == squad[off].pos]
         on = (same or bench)[0]
+        swap = self.forced("sub_override", None)
+        if swap is not None and swap["team"] == t:
+            off, on = swap["off"], swap["on"]
+            slot = st.on[t].index(off)
         st.on[t][slot] = on
         st.played[t][on] = True
         st.subs[t] += 1
@@ -470,7 +525,13 @@ class _Step:
         if margin is not None and abs(margin) < 1.5:
             extra["offside_margin"] = round(margin, 2)
 
-        if margin is not None and margin > -1.5 and rules.assistant_flags_offside(margin, n_ar):
+        flagged = margin is not None and margin > -1.5 and rules.assistant_flags_offside(margin, n_ar)
+        override = self.forced("offside", None)
+        if override is not None and margin is not None:
+            if flagged and not override:
+                success = True  # the ball reached the receiver in the original
+            flagged = override
+        if flagged:
             self.emit("pass", t, c, self.xy(), success=True, **extra)
             self.set_ball(t, ra, ry)
             self.emit("offside", t, ridx, self.xy(), margin=round(margin, 2), call="offside",
@@ -533,7 +594,7 @@ class _Step:
             contact *= BOOKED_CAUTION  # booked players pull out of challenges
         thr = ref.foul_thr
         margin = contact - thr
-        if rules.referee_calls_foul(contact, n_ref, thr):
+        if self.forced("foul", rules.referee_calls_foul(contact, n_ref, thr)):
             self.foul(t, o, c, dfn, contact, margin, n_card, bax, by)
             return
         drib = self.attr(t, c, "dribbling")
@@ -551,7 +612,7 @@ class _Step:
         st, ref = self.st, self.ctx.referee
         in_box = rules.in_penalty_area(bax, by)
         card_score = contact + n_card + 0.25 * (0.5 - self.attr(o, dfn, "discipline"))
-        card = rules.card_for(card_score, ref.yellow_thr, ref.red_thr)
+        card = self.forced("card", rules.card_for(card_score, ref.yellow_thr, ref.red_thr))
         call = "penalty" if in_box else "free_kick"
         contestable = abs(margin) < CONTEST_FOUL or in_box or (
             card is not None and abs(card_score - ref.yellow_thr) < 0.06)
@@ -578,7 +639,7 @@ class _Step:
 
     def xg(self, t, o, c, dist, y):
         angle = max(0.25, 1.0 - abs(y - GOAL_Y) / 40.0)
-        base = 0.46 * math.exp(-(max(dist, 6.0) - 6.0) / 8.0) * angle
+        base = 0.42 * math.exp(-(max(dist, 6.0) - 6.0) / 8.0) * angle
         x = (base * (0.55 + 0.9 * self.attr(t, c, "finishing"))
              * (0.85 + 0.3 * self.tact(t, "attack"))
              * (1.15 - 0.3 * self.tact(o, "defence"))
@@ -606,6 +667,7 @@ class _Step:
             outcome = "saved"
         else:
             outcome = "off_target"
+        outcome = self.forced("shot", outcome)
         self.emit("shot", t, c, self.xy(), kind=kind, xg=round(xg, 3), dist=round(dist, 1),
                   outcome=outcome, on_target=outcome in ("goal", "saved"))
         self.after_shot(t, o, c, outcome, r_after, r_who)
@@ -619,6 +681,7 @@ class _Step:
         keeper = self.gk(o)
         p = 0.76 + 0.2 * (self.attr(t, taker, "finishing") - 0.6) - 0.15 * (self.attr(o, keeper, "saving") - 0.6)
         outcome = "goal" if r_goal < p else ("saved" if r_goal < p + (1 - p) * 0.7 else "off_target")
+        outcome = self.forced("shot", outcome)
         self.emit("shot", t, taker, self.xy(), kind="penalty", xg=0.76, dist=11.0,
                   outcome=outcome, on_target=outcome in ("goal", "saved"), law=LAWS["penalty"])
         self.after_shot(t, o, taker, outcome, r_after, r_who)

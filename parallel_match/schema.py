@@ -6,6 +6,7 @@ EVENT_TYPES = (
     "kickoff", "pass", "dribble", "tackle", "interception", "foul", "card",
     "offside", "shot", "goal", "throw_in", "goal_kick", "corner",
     "free_kick", "substitution", "half_time", "full_time",
+    "lineup_change", "tactical_change",  # alternate timelines only
 )
 
 
