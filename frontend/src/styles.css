@@ -971,7 +971,6 @@ select {
   margin-top: var(--gap);
   padding: 26px 28px 22px;
   border: 1px solid var(--line);
-  border-top: 3px solid var(--real);
   border-radius: var(--radius);
   background: var(--surface);
 }
