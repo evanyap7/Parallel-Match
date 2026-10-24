@@ -48,8 +48,11 @@ are handled explicitly.
   everywhere else is the deterministic `TemplateProvider`, so dev, CI and a
   credits-outage demo all behave identically.
 - **MCP**: precedent is exposed as MCP tools (`history_query`,
-  `season_summary`) by `mcp_history/server.py`. The Historian calls the same
-  `history_for` in process; any MCP client can use the server. In the Foundry deployment an Agent Framework agent can attach
+  `season_summary`) by `mcp_history/server.py`. The Historian fetches its
+  facts by calling `history_query` on the deployed server over streamable HTTP
+  (`agents/history_client.py`, `PM_HISTORY_MCP_URL`), and falls back to the
+  same function in process if MCP is unreachable. `/precedents` reports
+  `source: "mcp"` or `"in-process"`; `/health` shows the MCP URL and last error. In the Foundry deployment an Agent Framework agent can attach
   the tool with `MCPStreamableHTTPTool` against the deployed `pm-history-mcp`
   app (both are wired in `deploy/deploy.sh`).
 - **Azure Container Apps**: one image, two apps (`pm-agents`, `pm-history-mcp`)

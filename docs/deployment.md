@@ -52,11 +52,11 @@ subscription a monthly free grant (180,000 vCPU-s, 360,000 GiB-s, 2M requests).
 | pm-api | 1 vCPU, 2 GiB | min 1 | $0.78 |
 | pm-agents | 0.5 vCPU, 1 GiB | min 1 | $0.39 |
 | pm-web | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
-| pm-history-mcp | 0.25 vCPU, 0.5 GiB | scales to zero | ~$0 |
+| pm-history-mcp | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
 | Registry (Basic) | | | $0.17 |
 | Foundry (gpt-4o-mini) | per call | | cents |
 
-About **$1.5/day, ~$26 to 10 Nov**, before the free grant; active request
+About **$1.75/day, ~$30 to 10 Nov**, before the free grant; active request
 time and image builds add a little. No Log Analytics workspace is created
 (`--logs-destination none`); stream logs with
 `az containerapp logs show -n pm-agents -g <rg> --follow`.
@@ -103,8 +103,10 @@ API=http://localhost:8000 AGENTS=http://localhost:8001 \
 
 Sizing: featured forks are precomputed; an uncached fork takes about 9 s on
 1 vCPU. The agents and MCP apps replay the 90-match season once at startup
-(about 6 s, ~140 MB), which is why web, api and agents stay warm. MCP scales to
-zero, so its first call after a quiet spell takes ~15 s.
+(about 6 s, ~140 MB), which is why all four apps stay warm. The Historian
+fetches precedent through `pm-history-mcp` (`PM_HISTORY_MCP_URL`, set by
+`deploy.sh`), falling back to the same function in process if MCP is
+unreachable; `/precedents` returns `source: "mcp"` or `"in-process"`.
 
 The agents API allows any origin (`PM_CORS_ORIGINS=*`, no cookies are used);
 set it to the `pm-web` URL to lock it down. The simulator API already allows

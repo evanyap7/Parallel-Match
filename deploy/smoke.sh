@@ -58,6 +58,9 @@ if [[ -n "$AGENTS" ]]; then
     if [[ -n "${prec:-}" ]]; then
       a="$(echo "$prec" | json 'd["history"]["n"]')"; b="$(echo "$fork" | json 'd["history"]["n"]')"
       [[ "$a" == "$b" ]] && ok "Historian and /fork agree on precedent n=$a" || bad "Historian n=$a but /fork n=$b"
+      via="$(echo "$prec" | json 'd.get("source")')"
+      [[ "$via" == "mcp" ]] && ok "Historian fetched precedent via MCP" \
+        || bad "Historian used '$via', not MCP (see /health history_mcp.mcp_last_error)"
     fi
     narr="$(curl -fsS -X POST "$AGENTS/narrate" -H 'content-type: application/json' \
       -d "$("$PY" -c 'import json,sys; print(json.dumps({"fork_response":json.loads(sys.argv[1])}))' "$fork")")" \

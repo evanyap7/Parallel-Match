@@ -6,6 +6,8 @@ Endpoints (all POST bodies are JSON):
 - POST /narrate                    {fork_response, match_id?}
 - POST /explain                    {match_id, event_id}
 - POST /precedents                 {match_id, event_id, fork_response?}
+                                   (fetched through the MCP server when
+                                   PM_HISTORY_MCP_URL is set; `source` says)
 - POST /parse                      {text, match_id, event_id}
 
 Matches are the real 90-match season (parallel_match/data/season.json,
@@ -26,10 +28,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import historian, intervention, law_explainer, narrator
+from . import history_client, historian, intervention, law_explainer, narrator
 from .provider import get_provider, provider_error
 from mcp_history import HistoryStore, default_store
-from mcp_history.precedent import compare_with_simulation, history_for, source
+from mcp_history.precedent import compare_with_simulation, source
 
 
 @asynccontextmanager
@@ -98,6 +100,7 @@ def health():
         "model": getattr(provider, "model", None),
         "model_last_error": getattr(provider, "last_error", None),
         "precedent_source": source(),
+        "history_mcp": history_client.status(),
         "season": store.season_summary(),
     }
 
@@ -122,7 +125,7 @@ def explain(body: EventBody):
 def precedents(body: PrecedentsBody):
     store = _store()
     event, _index = _event_or_404(store, body.match_id, body.event_id)
-    block = history_for(body.match_id, body.event_id)
+    block, via = history_client.precedent(body.match_id, body.event_id)
     if block is None:
         raise HTTPException(404, "moment is not a contestable call (foul or offside decision)")
     fork = body.fork_response
@@ -132,7 +135,9 @@ def precedents(body: PrecedentsBody):
     if fork is not None and "match" not in fork:
         fork = {**fork, "match": store.match(body.match_id)}
     block = compare_with_simulation(block, fork)
-    return historian.run(store.match(body.match_id), event, block, get_provider())
+    result = historian.run(store.match(body.match_id), event, block, get_provider())
+    result["source"] = via   # "mcp" (via pm-history-mcp) or "in-process" fallback
+    return result
 
 
 @app.post("/parse")

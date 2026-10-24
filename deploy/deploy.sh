@@ -205,7 +205,7 @@ upsert() {
 SIZE_API=(1.0 2Gi "$MIN_REPLICAS" 2)
 SIZE_AGENTS=(0.5 1Gi "$MIN_REPLICAS" 2)
 SIZE_WEB=(0.25 0.5Gi "$MIN_REPLICAS" 2)
-SIZE_MCP=(0.25 0.5Gi 0 1)        # judges rarely call MCP: scale to zero
+SIZE_MCP=(0.25 0.5Gi "$MIN_REPLICAS" 1)   # the Historian calls it on every card
 
 deploy_api() {          # simulator API: forks run rollouts in a process pool
   build "$API_IMAGE" Dockerfile || return 1
@@ -220,6 +220,7 @@ deploy_agents() {
     AZURE_AI_FOUNDRY_PROJECT_ENDPOINT="${AZURE_AI_FOUNDRY_PROJECT_ENDPOINT:-}" \
     AZURE_AI_FOUNDRY_MODEL="${AZURE_AI_FOUNDRY_MODEL:-gpt-4o-mini}"
   if [[ "$BACKEND" == "foundry" ]]; then setup_foundry; fi
+  link_mcp
 }
 
 deploy_mcp() {
@@ -250,6 +251,17 @@ deploy_web() {
 deploy_hello() {
   build "$HELLO_IMAGE" deploy/hello/Dockerfile || return 1
   upsert pm-hello "$HELLO_IMAGE" 8000 0.25 0.5Gi 0 1
+}
+
+# Point the agents at the MCP server, so the Historian fetches precedent via
+# MCP (it falls back in process if MCP is unreachable).
+link_mcp() {
+  local mcp; mcp="$(fqdn pm-history-mcp)"
+  if [[ -n "$mcp" ]] && exists pm-agents; then
+    log "pm-agents -> MCP at https://$mcp/mcp"
+    az containerapp update -n pm-agents -g "$RESOURCE_GROUP" \
+      --set-env-vars PM_HISTORY_MCP_URL="https://$mcp/mcp" > /dev/null
+  fi
 }
 
 # Foundry access: grant the user-assigned identity "Azure AI User" on the
@@ -335,7 +347,7 @@ case "$WHAT" in
     az group delete -n "$RESOURCE_GROUP" --yes --no-wait; echo "deleting $RESOURCE_GROUP" ;;
   api)     prepare; u=$(deploy_api);    echo "api: $u" ;;
   agents)  prepare; u=$(deploy_agents); echo "agents: $u" ;;
-  mcp)     prepare; u=$(deploy_mcp);    echo "mcp: $u/mcp" ;;
+  mcp)     prepare; u=$(deploy_mcp);    echo "mcp: $u/mcp"; link_mcp ;;
   web)     prepare; u=$(deploy_web);    echo "web: $u" ;;
   hello)   prepare; u=$(deploy_hello);  echo "hello: $u" ;;
   urls)    urls ;;
@@ -345,6 +357,7 @@ case "$WHAT" in
     u=$(deploy_agents); echo "agents: $u"
     AGENTS_BUILT=1
     u=$(deploy_mcp);    echo "mcp: $u/mcp"
+    link_mcp
     u=$(deploy_web);    echo "web: $u"
     echo
     echo "Smoke test:  ./deploy/smoke.sh"
