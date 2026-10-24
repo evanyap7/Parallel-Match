@@ -2,8 +2,17 @@ import { describe, expect, it } from "vitest";
 import rawMatch from "../../fixtures/m012.json";
 import rawFork from "../../fixtures/fork_m012.json";
 import { parseFork, parseMatch } from "./api";
-import { alternateEvents, changesFor, eventAt, statsAt } from "./model";
-import type { ForkRequest, MatchEvent } from "./types";
+import {
+  alternateEvents,
+  changesFor,
+  eventAt,
+  statsAt,
+  keyMoments,
+  momentHeadline,
+  whatIfQuestion,
+  winChance,
+} from "./model";
+import type { ForkRequest, ForkResult, MatchEvent } from "./types";
 
 const match = parseMatch(rawMatch);
 const request: ForkRequest = {
@@ -145,5 +154,62 @@ describe("completed engine cache", () => {
     expect(
       parseFork({ ...rawFork, history: null }, request).history,
     ).toBeNull();
+  });
+});
+
+describe("view helpers", () => {
+  const ev = (over: Partial<MatchEvent>): MatchEvent => ({
+    id: "m-1",
+    step: 1,
+    t: 0,
+    min: "1",
+    period: 1,
+    type: "pass",
+    score: [0, 0],
+    ...over,
+  });
+
+  it("keeps the most important moments in match order and always the selected one", () => {
+    const moments = [
+      ev({ id: "a", t: 300, type: "goal", team: "WES" }),
+      ev({ id: "b", t: 100, type: "pass", call: "onside", margin: 0.9 }),
+      ev({ id: "c", t: 200, type: "foul", call: "penalty", team: "COP" }),
+      ev({
+        id: "d",
+        t: 50,
+        type: "tackle",
+        call: "no_foul",
+        contestable: true,
+        margin: 0.2,
+      }),
+    ];
+    expect(keyMoments(moments, 2).map((e) => e.id)).toEqual(["c", "a"]);
+    expect(keyMoments(moments, 2, "d").map((e) => e.id)).toEqual(["d", "a"]);
+  });
+
+  it("names moments in plain language and asks the fan's question", () => {
+    const pen = ev({ type: "foul", call: "penalty", team: "COP" });
+    expect(momentHeadline(pen)).toBe("Penalty given against Copperfield FC");
+    expect(whatIfQuestion({ type: "flip_call" }, pen)).toBe(
+      "What if it wasn’t a penalty?",
+    );
+    expect(whatIfQuestion({ type: "shot_outcome", outcome: "goal" })).toBe(
+      "What if it went in?",
+    );
+  });
+
+  it("reads win chance from the rollout shares, or derives it from the shift", () => {
+    const base = {
+      original: {
+        final_score: [2, 1],
+        win_prob: [],
+        outcome: { home: 0.31, draw: 0.34, away: 0.35 },
+      },
+      alternate: { final_score: [1, 1], win_prob: [], timeline: [] },
+      outcome_shift: { home: -0.14, draw: -0.09, away: 0.23 },
+    } as unknown as ForkResult;
+    const w = winChance(base, "home");
+    expect(w.before).toBeCloseTo(0.31);
+    expect(w.after).toBeCloseTo(0.17);
   });
 });

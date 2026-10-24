@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
-  Check,
-  ChevronRight,
   CircleHelp,
   GitBranch,
   LoaderCircle,
-  Pause,
-  Play,
-  RotateCcw,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import {
@@ -21,32 +15,14 @@ import {
   getMatches,
   sourceMode,
 } from "./api";
-import {
-  alternateEvents,
-  changesFor,
-  changeLabel,
-  comparisonSummary,
-  clockLabel,
-  clubName,
-  describe,
-  eventAt,
-  percent,
-  points,
-  readable,
-  scoreText,
-  statsAt,
-} from "./model";
-import { Pitch } from "./components/Pitch";
-import { ProbabilityChart } from "./components/ProbabilityChart";
+import { alternateEvents, changesFor } from "./model";
 import { parseWhatIf } from "./agents";
 import { toEngineChange } from "./parser-adapter";
-import {
-  AgentStatus,
-  AgentLaw,
-  AgentNarrative,
-  AgentHistory,
-} from "./components/AgentPanels";
-import { DecisionControls } from "./components/DecisionControls";
+import { AgentStatus } from "./components/AgentPanels";
+import { FanView } from "./components/FanView";
+import { AnalystView } from "./components/AnalystView";
+import { MatchHeader } from "./components/MatchHeader";
+import type { ViewProps } from "./components/viewProps";
 import type {
   Change,
   Club,
@@ -72,7 +48,6 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(12);
   const [selectedId, setSelectedId] = useState("");
-  const [filter, setFilter] = useState("all");
   const [view, setView] = useState<"fan" | "analyst">("fan");
   const [focus, setFocus] = useState("");
   const [result, setResult] = useState<ForkResult>();
@@ -169,7 +144,6 @@ export default function App() {
           available[0];
         setSelectedId(initial?.id ?? "");
         setTime(initial?.t ?? 0);
-        setFilter("all");
       })
       .catch((e) => {
         if (!ctrl.signal.aborted) setLoadError(errorText(e));
@@ -197,21 +171,6 @@ export default function App() {
   useEffect(() => {
     if (playing && time >= end) setPlaying(false);
   }, [time, end, playing]);
-  const moments = apiMoments;
-  const filtered = moments.filter(
-    (e) =>
-      filter === "all" ||
-      (filter === "offside"
-        ? e.type === "offside" || e.call === "onside"
-        : filter === "foul"
-          ? e.law?.startsWith("Law 12")
-          : ["goal", "shot", "card", "substitution"].includes(e.type)),
-  );
-  const stats = useMemo(
-    () => (match ? statsAt(match, time) : undefined),
-    [match, time],
-  );
-  const current = match ? eventAt(match.events, time) : undefined;
   const canMock =
     sourceMode !== "fixtures" || selectedId === fixtureEvents[matchId];
   const change =
@@ -282,15 +241,62 @@ export default function App() {
       if (!ctrl.signal.aborted) setForkLoading(false);
     }
   }
+  const viewProps: ViewProps | undefined = match && {
+    match,
+    clubs,
+    moments: apiMoments,
+    selected,
+    selectedId,
+    chooseMoment,
+    change,
+    changeReady: Boolean(changeReady),
+    canMock,
+    updateChange,
+    explore: (fromText?: boolean) => void explore(fromText),
+    cancel: () => {
+      forkController.current?.abort();
+      setForkLoading(false);
+    },
+    loadExample: () => {
+      const e = match.events.find((ev) => ev.id === fixtureEvents[matchId]);
+      if (e) chooseMoment(e);
+    },
+    forkLoading,
+    forkError,
+    result,
+    forkEvents,
+    attempt,
+    whatIf,
+    setWhatIf,
+    focus,
+    setFocus,
+    side,
+    transport: { time, end, playing, speed, setTime, setPlaying, setSpeed },
+    liveEngine: sourceMode === "api",
+  };
   return (
-    <div className="app-shell">
+    <div className={`app-shell view-${view}`}>
       <header className="topbar">
         <a href="#main" className="brand">
-          <span className="brand-mark">
-            <GitBranch size={23} />
-          </span>
-          parallel<span className="brand-light">match</span>
+          <GitBranch size={20} aria-hidden="true" />
+          Parallel Match
         </a>
+        <nav className="view-switch" aria-label="View">
+          <button
+            aria-pressed={view === "fan"}
+            className={view === "fan" ? "active" : ""}
+            onClick={() => setView("fan")}
+          >
+            Fan
+          </button>
+          <button
+            aria-pressed={view === "analyst"}
+            className={view === "analyst" ? "active" : ""}
+            onClick={() => setView("analyst")}
+          >
+            Analyst
+          </button>
+        </nav>
         <div className="topbar-right">
           <AgentStatus />
           <span className="source-pill">
@@ -307,32 +313,16 @@ export default function App() {
         </div>
       </header>
       <main id="main" tabIndex={-1}>
-        <div className="page-intro">
-          <div>
-            <h1>
-              One decision.
-              <br />
-              <span>A different match.</span>
-            </h1>
-            <p>
-              Explore a turning point. Follow the evidence. See what could
-              change.
-            </p>
-          </div>
-          <div className="intro-side">
-            <span className="model-stamp">
-              <ShieldCheck size={16} /> Model world
-            </span>
-            <p>
-              Fictional clubs. Synthetic events.
-              <br />
-              Possibilities, with their uncertainty.
-            </p>
-          </div>
+        <div className="sr-only" role="status" aria-live="polite">
+          {forkLoading
+            ? "Running the comparison."
+            : result
+              ? `Comparison ready: ${result.description}`
+              : ""}
         </div>
         {loadError ? (
           <div className="error-panel" role="alert">
-            <h2>We couldn’t load the match.</h2>
+            <h1>We couldn’t load the match.</h1>
             <p>{loadError}</p>
             <button className="primary" onClick={() => setRetry((x) => x + 1)}>
               Try again
@@ -341,688 +331,46 @@ export default function App() {
               API errors never silently fall back to fixture data.
             </p>
           </div>
-        ) : !match ? (
+        ) : !match || !viewProps ? (
           <div className="loading-panel" role="status">
             <LoaderCircle className="spin" /> Loading the match…
           </div>
         ) : (
           <>
-            <div className="sr-only" role="status" aria-live="polite">
-              {forkLoading
-                ? "Running the comparison."
-                : result
-                  ? `Comparison ready: ${result.description}`
-                  : ""}
-            </div>
-            <div className="match-toolbar">
-              <div className="fixture-title">
-                <span className="league-label">The synthetic league</span>
-                <h2>
-                  {clubName(match.home)} <span>vs</span> {clubName(match.away)}
-                </h2>
-              </div>
-              <div className="toolbar-controls">
-                {matches.length > 1 && (
-                  <label>
-                    Match
-                    <select
-                      value={matchId}
-                      onChange={(e) => setMatchId(e.target.value)}
-                    >
-                      {matches.map((m) => (
-                        <option key={m.match_id} value={m.match_id}>
-                          {m.home && m.away
-                            ? `${m.home} vs ${m.away}${m.story ? ` · ${readable(m.story)}` : ""} · ${m.match_id}`
-                            : m.match_id}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                <div
-                  className="segmented"
-                  role="group"
-                  aria-label="Explanation detail"
-                >
-                  <button
-                    aria-pressed={view === "fan"}
-                    className={view === "fan" ? "active" : ""}
-                    onClick={() => setView("fan")}
-                  >
-                    Fan view
-                  </button>
-                  <button
-                    aria-pressed={view === "analyst"}
-                    className={view === "analyst" ? "active" : ""}
-                    onClick={() => setView("analyst")}
-                  >
-                    Analyst
-                  </button>
-                </div>
-              </div>
-            </div>
+            <MatchHeader
+              match={match}
+              matches={matches}
+              matchId={matchId}
+              setMatchId={setMatchId}
+              analyst={view === "analyst"}
+            />
             {sourceMode === "fixtures" && (
-              <div className="fixture-notice">
-                <CircleHelp size={15} />
-                <span>
-                  Both replays and statistics come from the{" "}
-                  <strong>completed simulator</strong>. Offline mode includes
-                  one featured alternative per match; connect the engine to
-                  explore every decision.
-                </span>
-              </div>
+              <p className="fixture-notice">
+                Offline mode: replays come from the completed simulator, with
+                one featured comparison per match. Connect the engine to explore
+                every decision.
+              </p>
             )}
-            <div className="workspace-grid">
-              <div className="broadcast-column">
-                <div className="broadcast-grid">
-                  <Pitch
-                    events={match.events}
-                    time={time}
-                    home={match.home}
-                    away={match.away}
-                  />
-                  <Pitch
-                    events={forkEvents}
-                    time={time}
-                    home={match.home}
-                    away={match.away}
-                    alternate
-                    pending={!forkEvents.length}
-                    divergence={result?.divergence.t}
-                  />
-                </div>
-                {result && (
-                  <AgentNarrative
-                    key={`${match.match_id}:${selectedId}:${attempt}`}
-                    result={result}
-                  />
-                )}
-                <section
-                  className="transport card"
-                  aria-label="Replay controls"
-                >
-                  <div className="transport-top">
-                    <div className="playback-buttons">
-                      <button
-                        className="play-button"
-                        aria-label={playing ? "Pause replay" : "Play replay"}
-                        onClick={() => {
-                          if (time >= end) setTime(0);
-                          setPlaying((p) => !p);
-                        }}
-                      >
-                        {playing ? <Pause size={18} /> : <Play size={18} />}
-                      </button>
-                      <button
-                        className="icon-button"
-                        aria-label="Restart replay"
-                        onClick={() => {
-                          setTime(0);
-                          setPlaying(false);
-                        }}
-                      >
-                        <RotateCcw size={16} />
-                      </button>
-                      <strong className="transport-clock">
-                        {clockLabel(time)}
-                      </strong>
-                      <span className="muted">/ {clockLabel(end)}</span>
-                    </div>
-                    <label className="speed-label">
-                      Speed
-                      <select
-                        aria-label="Replay speed"
-                        value={speed}
-                        onChange={(e) => setSpeed(Number(e.target.value))}
-                      >
-                        <option value={1}>1×</option>
-                        <option value={6}>6×</option>
-                        <option value={12}>12×</option>
-                        <option value={30}>30×</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div className="scrubber">
-                    <input
-                      type="range"
-                      aria-label="Match replay position"
-                      aria-valuetext={clockLabel(time)}
-                      min="0"
-                      max={end}
-                      step="1"
-                      value={time}
-                      onChange={(e) => {
-                        setTime(Number(e.target.value));
-                        setPlaying(false);
-                      }}
-                    />
-                    <div className="moment-markers">
-                      {moments.map((e) => (
-                        <button
-                          key={e.id}
-                          aria-label={`Select ${readable(e.type)} at ${e.min} minutes`}
-                          title={`${e.min}′ · ${readable(e.type)}`}
-                          aria-current={
-                            e.id === selectedId ? "true" : undefined
-                          }
-                          className={e.id === selectedId ? "selected" : ""}
-                          style={{ left: `${(e.t / end) * 100}%` }}
-                          onClick={() => chooseMoment(e)}
-                        />
-                      ))}
-                      {result && (
-                        <span
-                          className="divergence-pin"
-                          style={{
-                            left: `${(result.divergence.t / end) * 100}%`,
-                          }}
-                        >
-                          <GitBranch size={12} /> Fork {result.divergence.min}′
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="timeline-labels">
-                    <span>Kick-off</span>
-                    <span>30′</span>
-                    <span>60′</span>
-                    <span>Full-time</span>
-                  </div>
-                  <div className="timeline-key">
-                    <span>
-                      <i /> Supported moment
-                    </span>
-                    <span>{moments.length} moments to explore</span>
-                  </div>
-                </section>
-                <section className="live-stats card">
-                  <div className="section-title">
-                    <h3>Match pulse</h3>
-                    <span className="small-label">At {clockLabel(time)}</span>
-                  </div>
-                  <div className="stats-row">
-                    <div>
-                      <span>Score</span>
-                      <strong>{scoreText(current?.score ?? [0, 0])}</strong>
-                      <small>
-                        {match.home} / {match.away}
-                      </small>
-                    </div>
-                    <div>
-                      <span>Shots</span>
-                      <strong>{stats?.shots.join(" / ")}</strong>
-                      <small>Recorded shot events</small>
-                    </div>
-                    <div>
-                      <span>Expected goals</span>
-                      <strong>
-                        {stats?.xg.map((n) => n.toFixed(2)).join(" / ")}
-                      </strong>
-                      <small>Sum of simulator xG</small>
-                    </div>
-                    <div>
-                      <span>Pass completion</span>
-                      <strong>
-                        {stats?.passes
-                          .map((n, i) =>
-                            n
-                              ? `${Math.round((stats.completed[i] / n) * 100)}%`
-                              : "\u2013",
-                          )
-                          .join(" / ")}
-                      </strong>
-                      <small>Completed / attempted</small>
-                    </div>
-                  </div>
-                </section>
-                {result ? (
-                  <div className="results-stack" key={attempt}>
-                    <div className="result-banner">
-                      <GitBranch size={17} />
-                      <span>
-                        {result.placeholder
-                          ? "Fixture comparison"
-                          : "Model comparison"}{" "}
-                        · {result.divergence.min}′ · {result.description}
-                      </span>
-                      <span className="small-label">
-                        {result.placeholder
-                          ? "Not measured results"
-                          : "Not a prediction"}
-                      </span>
-                    </div>
-                    <div className="insights-grid">
-                      <ProbabilityChart result={result} home={match.home} />
-                      <section className="verdict card">
-                        <div className="section-title">
-                          <h3>The turning point</h3>
-                        </div>
-                        <strong className="delta">
-                          {points(
-                            result.outcome_shift[
-                              focus === match.away ? "away" : "home"
-                            ],
-                          )}
-                        </strong>
-                        <span className="delta-label">
-                          {focus} win probability,{" "}
-                          {result.rollouts.toLocaleString()} paired rollouts
-                        </span>
-                        <p className="verdict-text">
-                          {comparisonSummary(result, focus, side)}
-                        </p>
-                        <p className="small muted">
-                          {result.verdict
-                            ? "Agent narrative"
-                            : "Data summary from paired rollouts"}
-                          {result.cached ? " · Precomputed simulation" : ""}
-                          {!result.diverged
-                            ? " · No immediate change at the selected step"
-                            : ""}
-                        </p>
-                        <div className="final-comparison">
-                          <span>Recorded original / typical alternate</span>
-                          <div>
-                            <span>
-                              Original{" "}
-                              <strong>
-                                {scoreText(result.original.final_score)}
-                              </strong>
-                            </span>
-                            <ArrowRight size={14} />
-                            <span>
-                              Alternate{" "}
-                              <strong>
-                                {scoreText(result.alternate.final_score)}
-                              </strong>
-                            </span>
-                          </div>
-                        </div>
-                        <p className="small muted">
-                          {result.placeholder
-                            ? "Canned verdict and scores from the shared fixture. "
-                            : ""}
-                          A single path does not determine the outcome across
-                          all rollouts.
-                        </p>
-                      </section>
-                    </div>
-                    <section className="evidence card">
-                      <div className="section-title">
-                        <h3>Behind the comparison</h3>
-                        <span className="small-label">
-                          {result.placeholder
-                            ? "Sample evidence only"
-                            : "Simulation and precedent"}
-                        </span>
-                      </div>
-                      <div className="evidence-grid">
-                        <div>
-                          <span className="evidence-label">Re-simulation</span>
-                          <strong className="impact-number">
-                            {points(
-                              result.outcome_shift[
-                                focus === match.away ? "away" : "home"
-                              ],
-                            )}
-                          </strong>
-                          <p>{focus} win-probability shift</p>
-                          <small>
-                            {result.rollouts.toLocaleString()} paired rollouts ·{" "}
-                            {focus} shift 95% interval:{" "}
-                            {result.uncertainty.shift_ci95[side]
-                              .map(points)
-                              .join(" to ")}
-                          </small>
-                        </div>
-                        <div>
-                          <span className="evidence-label">
-                            Season precedent
-                          </span>
-                          <strong className="impact-number">
-                            {result.history?.n ?? "\u2013"}
-                            <span className="impact-unit">moments</span>
-                          </strong>
-                          <p>
-                            {result.history?.description ??
-                              "No comparable season history for this intervention."}
-                          </p>
-                          <small>
-                            {result.history ? (
-                              <>
-                                {result.history.attacking_team} attacking-team
-                                win share: call given{" "}
-                                {result.history.when_given.win === null
-                                  ? "unavailable"
-                                  : percent(result.history.when_given.win)}{" "}
-                                (n={result.history.when_given.n}); not given{" "}
-                                {result.history.when_not_given.win === null
-                                  ? "unavailable"
-                                  : percent(
-                                      result.history.when_not_given.win,
-                                    )}{" "}
-                                (n={result.history.when_not_given.n}).{" "}
-                              </>
-                            ) : (
-                              "Precedent is currently available for officiating flips only. "
-                            )}
-                            Observational precedent is not a causal estimate.
-                          </small>
-                        </div>
-                      </div>
-                      {result.change.type === "flip_call" && (
-                        <AgentHistory
-                          key={`${match.match_id}:${selectedId}:${attempt}`}
-                          result={result}
-                        />
-                      )}
-                      <div
-                        className={`agreement ${result.history?.agrees_with_simulation === false ? "disagrees" : ""}`}
-                      >
-                        {result.history?.agrees_with_simulation === true ? (
-                          <Check size={15} />
-                        ) : (
-                          <CircleHelp size={15} />
-                        )}
-                        <span>
-                          {result.history?.agrees_with_simulation == null
-                            ? "No agreement assessment supplied."
-                            : result.history?.agrees_with_simulation
-                              ? "The supplied estimates agree directionally."
-                              : "The supplied estimates disagree. This comparison is inconclusive."}
-                          {result.placeholder
-                            ? " This assessment is also a placeholder."
-                            : ""}
-                        </span>
-                      </div>
-                    </section>
-                  </div>
-                ) : (
-                  <div className="comparison-invitation">
-                    <GitBranch size={24} />
-                    <div>
-                      <h3>The match has another side.</h3>
-                      <p>
-                        Select a decision and explore its alternative. The
-                        evidence will appear here.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <aside className="decision-column">
-                <section className="decision-card card">
-                  <div className="section-title">
-                    <h3>
-                      <GitBranch size={16} /> Your turning point
-                    </h3>
-                  </div>
-                  {selected ? (
-                    <>
-                      <div className="decision-time">
-                        {selected.min}
-                        <span>′</span>
-                        <span className="decision-kind">
-                          {readable(selected.type)}
-                        </span>
-                      </div>
-                      <h4 className="decision-question">
-                        What if the decision changed?
-                      </h4>
-                      <p className="decision-description">
-                        {view === "fan"
-                          ? `At ${selected.min}′, ${selected.team} player ${selected.player} was involved in a ${readable(selected.type)} decision. Explore how a different call could affect what follows.`
-                          : describe(selected)}
-                      </p>
-                      <div className="decision-facts">
-                        <div>
-                          <span>Recorded call</span>
-                          <strong>
-                            {readable(selected.call ?? selected.type)}
-                          </strong>
-                        </div>
-                        <div>
-                          <span>Alternative</span>
-                          <strong className="lavender">
-                            {change
-                              ? changeLabel(change, selected)
-                              : "Not yet supported"}
-                          </strong>
-                        </div>
-                        {view === "analyst" && (
-                          <>
-                            <div>
-                              <span>Event</span>
-                              <code>{selected.id}</code>
-                            </div>
-                            {selected.margin !== undefined && (
-                              <div>
-                                <span>
-                                  {selected.type === "offside"
-                                    ? "Offside margin"
-                                    : "Decision margin"}
-                                </span>
-                                <strong>
-                                  {selected.margin.toFixed(3)}
-                                  {selected.type === "offside" ? " m" : ""}
-                                </strong>
-                              </div>
-                            )}
-                            <div>
-                              <span>Simulator step</span>
-                              <strong>{selected.step}</strong>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      {sourceMode === "api" && (
-                        <DecisionControls
-                          event={selected}
-                          match={match}
-                          clubs={clubs}
-                          change={change}
-                          onChange={updateChange}
-                        />
-                      )}
-                      <button
-                        className="primary explore"
-                        disabled={!changeReady || !canMock || forkLoading}
-                        onClick={() => explore()}
-                      >
-                        {forkLoading ? (
-                          <>
-                            <LoaderCircle size={17} className="spin" />{" "}
-                            Comparing timelines…
-                          </>
-                        ) : (
-                          <>
-                            Explore this alternative <ArrowRight size={17} />
-                          </>
-                        )}
-                      </button>
-                      {forkLoading && (
-                        <button
-                          className="text-button"
-                          onClick={() => {
-                            forkController.current?.abort();
-                            setForkLoading(false);
-                          }}
-                        >
-                          Cancel comparison
-                        </button>
-                      )}
-                      {!canMock && (
-                        <p className="small muted">
-                          Offline mode includes only the featured alternative.
-                          Connect the live engine to explore other moments.{" "}
-                          <button
-                            className="text-button"
-                            onClick={() => {
-                              const e = match.events.find(
-                                (e) => e.id === fixtureEvents[matchId],
-                              );
-                              if (e) chooseMoment(e);
-                            }}
-                          >
-                            Load the example moment
-                          </button>
-                        </p>
-                      )}
-                      {forkError && (
-                        <p role="alert" className="inline-error">
-                          {forkError}
-                        </p>
-                      )}
-                      <p className="model-disclaimer">
-                        {sourceMode === "fixtures"
-                          ? "Loads a precomputed simulator comparison."
-                          : "Runs a model comparison using the API."}{" "}
-                        A possibility, not a prediction.
-                      </p>
-                      {sourceMode === "api" && (
-                        <form
-                          className="what-if"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            void explore(true);
-                          }}
-                        >
-                          <label htmlFor="what-if">Your what if…</label>
-                          <textarea
-                            id="what-if"
-                            maxLength={500}
-                            value={whatIf}
-                            onChange={(e) => setWhatIf(e.target.value)}
-                            placeholder="What if that was no foul?"
-                          />
-                          <button
-                            className="primary"
-                            disabled={!whatIf.trim() || forkLoading}
-                          >
-                            Parse and explore
-                          </button>
-                          <p className="small muted">
-                            Supports removing a foul, reversing offside, or
-                            scoring a missed shot. Other requests show the
-                            parser’s response or an unsupported-case reason.
-                          </p>
-                          {result && (
-                            <p className="small">
-                              Sent to the fork: {result.description}.
-                            </p>
-                          )}
-                        </form>
-                      )}
-                      <AgentLaw
-                        key={`${match.match_id}:${selectedId}`}
-                        matchId={match.match_id}
-                        event={selected}
-                      />
-                      <div className="law-box">
-                        <ShieldCheck size={16} />
-                        <div>
-                          <strong>The law, neutrally</strong>
-                          <p>
-                            {selected.law ??
-                              "No law reference supplied for this event."}
-                          </p>
-                          <span>
-                            Exploring an alternative does not establish that the
-                            original decision was incorrect.
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <p>No supported moments in this match.</p>
-                  )}
-                </section>
-                <section className="moments-card card">
-                  <div className="section-title">
-                    <h3>Decision timeline</h3>
-                    <span className="count">{filtered.length}</span>
-                  </div>
-                  <div
-                    className="filter-row"
-                    role="group"
-                    aria-label="Filter moments"
-                  >
-                    {[
-                      ["all", "All"],
-                      ["foul", "Contact"],
-                      ["offside", "Offside"],
-                      ["other", "Other"],
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        className={filter === value ? "active" : ""}
-                        aria-pressed={filter === value}
-                        onClick={() => setFilter(value)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="moment-list">
-                    {filtered.map((e) => (
-                      <button
-                        className={`moment-item ${e.id === selectedId ? "active" : ""}`}
-                        aria-current={e.id === selectedId ? "true" : undefined}
-                        key={e.id}
-                        onClick={() => chooseMoment(e)}
-                      >
-                        <span className="moment-minute">{e.min}′</span>
-                        <span>
-                          <strong>{readable(e.type)}</strong>
-                          <small>
-                            {e.team} · {e.player} · {readable(e.call ?? "")}
-                          </small>
-                        </span>
-                        <ChevronRight size={15} />
-                      </button>
-                    ))}
-                    {!filtered.length && (
-                      <p className="small muted">
-                        No moments in this category.
-                      </p>
-                    )}
-                  </div>
-                </section>
-                <div className="focus-card">
-                  <span className="focus-title">Your perspective</span>
-                  <label htmlFor="club-focus">Follow a club</label>
-                  <select
-                    id="club-focus"
-                    value={focus}
-                    onChange={(e) => setFocus(e.target.value)}
-                  >
-                    <option value={match.home}>{clubName(match.home)}</option>
-                    <option value={match.away}>{clubName(match.away)}</option>
-                  </select>
-                  <p>
-                    The impact card follows your club. Match evidence stays the
-                    same.
-                  </p>
-                </div>
-              </aside>
-            </div>
+            {view === "fan" ? (
+              <FanView {...viewProps} />
+            ) : (
+              <AnalystView {...viewProps} />
+            )}
           </>
         )}
-        <footer>
-          <span>
-            <GitBranch size={15} /> Parallel Match
-          </span>
-          <span>Synthetic by design. Transparent by default.</span>
-          <button className="text-button" onClick={() => setShowHelp(true)}>
-            About the model world <ArrowRight size={13} />
-          </button>
-        </footer>
       </main>
+      <footer className="site-footer">
+        <span>Parallel Match</span>
+        <span>Every club, player and match here is synthetic.</span>
+        <button className="text-button" onClick={() => setShowHelp(true)}>
+          About the model world <ArrowRight size={13} />
+        </button>
+      </footer>
       {showHelp && (
         <div className="modal-backdrop" onClick={() => setShowHelp(false)}>
           <section
             ref={helpRef}
-            className="help-modal card"
+            className="help-modal"
             role="dialog"
             aria-modal="true"
             aria-label="About the model world"
@@ -1035,28 +383,23 @@ export default function App() {
             >
               <X size={20} />
             </button>
-            <h2>
-              Explore possibilities.
-              <br />
-              Keep the evidence in view.
-            </h2>
+            <h2>One decision. A different match.</h2>
             <p>
-              Every club, player and event in this viewer is fictional. Original
-              means the recorded synthetic match. Alternate means a simulated
-              continuation after a single changed decision.
+              Every club, player and event here is fictional. Real means the
+              recorded synthetic match. What if means a simulated continuation
+              after one changed decision.
             </p>
             <p>
-              Each comparison pairs original and alternate simulations using
-              shared random seeds. The typical alternate replay is one possible
-              path; the confidence interval describes the change across
-              rollouts. Season precedent compares different situations and may
+              Each comparison plays hundreds of paired simulations from the
+              moment of the decision, sharing random numbers, so the difference
+              is the decision and not luck. The typical alternate replay is one
+              possible path. Season precedent compares different matches and may
               disagree.
             </p>
             <p>
-              The pitch shows ball-event positions only. It does not invent
-              player tracking. The alternate simulation may disagree with
-              historical precedent; neither is proof of what would happen in a
-              real match.
+              The pitch shows ball-event positions only, not player tracking.
+              Neither the simulation nor precedent is proof of what would happen
+              in a real match.
             </p>
             <button className="primary" onClick={() => setShowHelp(false)}>
               Back to the match

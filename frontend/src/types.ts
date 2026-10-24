@@ -63,6 +63,11 @@ export interface Probability {
   draw: number;
   away: number;
 }
+export interface Outcome {
+  home: number;
+  draw: number;
+  away: number;
+}
 export interface ForkResult {
   placeholder?: boolean;
   note?: string;
@@ -75,13 +80,17 @@ export interface ForkResult {
   cached?: boolean;
   divergence: { event_id: string; step: number; t: number; min: string };
   moment: Partial<MatchEvent>;
-  original: { final_score: Score; win_prob: Probability[] };
+  original: { final_score: Score; win_prob: Probability[]; outcome?: Outcome };
   alternate: {
     final_score: Score;
     win_prob: Probability[];
     timeline: MatchEvent[];
     timeline_note?: string;
+    outcome?: Outcome;
+    rollout_index?: number;
   };
+  alternate_moment?: MatchEvent[];
+  timing?: { rollouts_s: number; total_s: number; workers: number };
   rollouts: number;
   outcome_shift: { home: number; draw: number; away: number };
   uncertainty: {
@@ -91,9 +100,14 @@ export interface ForkResult {
     n: number;
     description: string;
     attacking_team: string;
-    when_given: { n: number; win: number | null };
-    when_not_given: { n: number; win: number | null };
+    when_given: { n: number; win: number | null; goal_10?: number | null };
+    when_not_given: { n: number; win: number | null; goal_10?: number | null };
     agrees_with_simulation: boolean | null;
+    history_shift_att_win?: number | null;
+    sim_shift_att_win?: number;
+    attacking_is_home?: boolean;
+    called?: boolean;
+    family?: string;
   } | null;
   verdict?: string | null;
   score_spread: { score: Score; share: number }[];
