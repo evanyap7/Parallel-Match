@@ -50,6 +50,8 @@ ACR_INPUT="${AZURE_CONTAINER_REGISTRY:?set AZURE_CONTAINER_REGISTRY}"
 ACR_NAME="${ACR_INPUT%%.*}"                  # az acr build wants the name
 ACR_SERVER="${ACR_NAME}.azurecr.io"          # image refs want the login server
 ENV_NAME="${PM_ENV:-pm-env}"
+IDENTITY_NAME="${PM_IDENTITY:-pm-identity}"   # user-assigned: image pulls + Foundry
+BUILDER="${PM_BUILDER:-docker}"               # docker (local buildx) | acr (ACR Tasks)
 MIN_REPLICAS="${MIN_REPLICAS:-1}"
 IMAGE_TAG="${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}"
 BACKEND="${PM_AGENT_BACKEND:-template}"
@@ -91,7 +93,38 @@ setup() {
     log "creating registry $ACR_NAME (Basic)"
     az acr create -n "$ACR_NAME" -g "$RESOURCE_GROUP" -l "$LOCATION" --sku Basic > /dev/null
   }
+  ensure_identity
   ensure_env
+}
+
+# One user-assigned identity for every app. Express environments (and Azure
+# for Students ones can be express) do not support system-assigned identities;
+# a user-assigned one works in both express and standard environments.
+ensure_identity() {
+  az identity show -n "$IDENTITY_NAME" -g "$RESOURCE_GROUP" > /dev/null 2>&1 || {
+    log "creating managed identity $IDENTITY_NAME"
+    az identity create -n "$IDENTITY_NAME" -g "$RESOURCE_GROUP" -l "$LOCATION" > /dev/null
+  }
+  IDENTITY_ID="$(az identity show -n "$IDENTITY_NAME" -g "$RESOURCE_GROUP" --query id -o tsv)"
+  IDENTITY_CLIENT_ID="$(az identity show -n "$IDENTITY_NAME" -g "$RESOURCE_GROUP" --query clientId -o tsv)"
+  IDENTITY_PRINCIPAL="$(az identity show -n "$IDENTITY_NAME" -g "$RESOURCE_GROUP" --query principalId -o tsv)"
+  grant "$IDENTITY_PRINCIPAL" AcrPull "$(az acr show -n "$ACR_NAME" --query id -o tsv)"
+}
+
+# grant PRINCIPAL ROLE SCOPE (idempotent; tolerates "already exists")
+grant() {
+  local have
+  have="$(az role assignment list --assignee "$1" --role "$2" --scope "$3" --query "length(@)" -o tsv 2>/dev/null || echo 0)"
+  if [[ "$have" == "0" || -z "$have" ]]; then
+    log "granting $2 to $IDENTITY_NAME"
+    for _ in 1 2 3 4 5 6; do   # a new identity can take a minute to replicate
+      if az role assignment create --assignee-object-id "$1" --assignee-principal-type ServicePrincipal \
+           --role "$2" --scope "$3" > /dev/null 2>&1; then return 0; fi
+      sleep 10
+    done
+    echo "could not grant $2 on $3; grant it to $IDENTITY_NAME in the portal (Access control)" >&2
+    return 1
+  fi
 }
 
 ensure_env() {
@@ -104,10 +137,30 @@ ensure_env() {
 }
 
 # build IMAGE DOCKERFILE [--build-arg K=V ...]
+# Azure for Students blocks ACR Tasks (TasksOperationsNotAllowed), so the
+# default is a local Docker build for linux/amd64 (Container Apps runs amd64,
+# including from Apple Silicon Macs) pushed straight to the registry.
 build() {
   local image="$1" dockerfile="$2"; shift 2
-  log "building ${image##*/} from $dockerfile"
-  az acr build --registry "$ACR_NAME" --image "${image#*/}" --file "$dockerfile" "$@" . > /dev/null
+  log "building ${image##*/} from $dockerfile ($BUILDER)"
+  if [[ "$BUILDER" == "acr" ]]; then
+    az acr build --registry "$ACR_NAME" --image "${image#*/}" --file "$dockerfile" "$@" . > /dev/null
+  else
+    docker buildx build --platform linux/amd64 --file "$dockerfile" --tag "$image" \
+      --push --progress plain "$@" . > "${TMPDIR:-/tmp}/pm-build-${image##*/}.log" 2>&1 || {
+      tail -40 "${TMPDIR:-/tmp}/pm-build-${image##*/}.log" >&2
+      echo "build failed: full log in ${TMPDIR:-/tmp}/pm-build-${image##*/}.log" >&2
+      return 1
+    }
+  fi
+}
+
+docker_login() {
+  [[ "$BUILDER" == "acr" ]] && return 0
+  command -v docker > /dev/null || { echo "Docker is needed to build images (PM_BUILDER=docker): install Docker Desktop and start it" >&2; exit 1; }
+  docker info > /dev/null 2>&1 || { echo "Docker is installed but not running: start Docker Desktop" >&2; exit 1; }
+  docker buildx version > /dev/null 2>&1 || { echo "docker buildx is missing: update Docker Desktop" >&2; exit 1; }
+  az acr login -n "$ACR_NAME" > /dev/null
 }
 
 exists() { az containerapp show -n "$1" -g "$RESOURCE_GROUP" > /dev/null 2>&1; }
@@ -118,27 +171,32 @@ fqdn() {
 }
 
 # upsert NAME IMAGE PORT CPU MEMORY MIN MAX [ENV=VAR ...]
-# Creates the app the first time (system identity pulls from ACR); afterwards
-# only rolls a new revision with the new image and env.
+# Creates the app the first time; afterwards rolls a new revision. Either way
+# the app pulls with the user-assigned identity.
 upsert() {
   local name="$1" image="$2" port="$3" cpu="$4" mem="$5" min="$6" max="$7"; shift 7
   local scale=(--cpu "$cpu" --memory "$mem" --min-replicas "$min" --max-replicas "$max")
   if exists "$name"; then
     log "updating $name"
+    az containerapp identity assign -n "$name" -g "$RESOURCE_GROUP" --user-assigned "$IDENTITY_ID" > /dev/null || return 1
+    az containerapp registry set -n "$name" -g "$RESOURCE_GROUP" --server "$ACR_SERVER" \
+      --identity "$IDENTITY_ID" > /dev/null || return 1
     local env_args=()
     if (($#)); then env_args=(--set-env-vars "$@"); fi
     az containerapp update -n "$name" -g "$RESOURCE_GROUP" --image "$image" "${scale[@]}" \
-      ${env_args[@]+"${env_args[@]}"} > /dev/null
+      ${env_args[@]+"${env_args[@]}"} > /dev/null || return 1
   else
     log "creating $name"
     local env_args=()
     if (($#)); then env_args=(--env-vars "$@"); fi
     az containerapp create -n "$name" -g "$RESOURCE_GROUP" --environment "$ENV_NAME" \
       --image "$image" --target-port "$port" --ingress external \
-      --registry-server "$ACR_SERVER" --registry-identity system "${scale[@]}" \
-      ${env_args[@]+"${env_args[@]}"} > /dev/null
+      --user-assigned "$IDENTITY_ID" \
+      --registry-server "$ACR_SERVER" --registry-identity "$IDENTITY_ID" "${scale[@]}" \
+      ${env_args[@]+"${env_args[@]}"} > /dev/null || return 1
   fi
-  echo "https://$(fqdn "$name")"
+  local url; url="https://$(fqdn "$name")"
+  echo "$url"
 }
 
 # Judging sizes. Featured forks are precomputed; an uncached fork takes about
@@ -150,23 +208,26 @@ SIZE_WEB=(0.25 0.5Gi "$MIN_REPLICAS" 2)
 SIZE_MCP=(0.25 0.5Gi 0 1)        # judges rarely call MCP: scale to zero
 
 deploy_api() {          # simulator API: forks run rollouts in a process pool
-  build "$API_IMAGE" Dockerfile
+  build "$API_IMAGE" Dockerfile || return 1
   upsert pm-api "$API_IMAGE" 8000 "${SIZE_API[@]}"
 }
 
 deploy_agents() {
-  build "$AGENTS_IMAGE" deploy/Dockerfile
+  build "$AGENTS_IMAGE" deploy/Dockerfile || return 1
+  AGENTS_BUILT=1
   upsert pm-agents "$AGENTS_IMAGE" 8000 "${SIZE_AGENTS[@]}" \
-    PM_SERVICE=api PM_AGENT_BACKEND="$BACKEND" \
+    PM_SERVICE=api PM_AGENT_BACKEND="$BACKEND" AZURE_CLIENT_ID="$IDENTITY_CLIENT_ID" \
     AZURE_AI_FOUNDRY_PROJECT_ENDPOINT="${AZURE_AI_FOUNDRY_PROJECT_ENDPOINT:-}" \
     AZURE_AI_FOUNDRY_MODEL="${AZURE_AI_FOUNDRY_MODEL:-gpt-4o-mini}"
-  if [[ "$BACKEND" == "foundry" ]]; then setup_foundry > /dev/null; fi
+  if [[ "$BACKEND" == "foundry" ]]; then setup_foundry; fi
 }
 
 deploy_mcp() {
   # Same image as the agents; build only if this run has not built it.
-  az acr repository show --name "$ACR_NAME" --image "${AGENTS_IMAGE#*/}" > /dev/null 2>&1 || \
-    build "$AGENTS_IMAGE" deploy/Dockerfile
+  if [[ -z "${AGENTS_BUILT:-}" ]] && ! az acr repository show --name "$ACR_NAME" \
+      --image "${AGENTS_IMAGE#*/}" > /dev/null 2>&1; then
+    build "$AGENTS_IMAGE" deploy/Dockerfile || return 1
+  fi
   upsert pm-history-mcp "$AGENTS_IMAGE" 8080 "${SIZE_MCP[@]}" PM_SERVICE=mcp
 }
 
@@ -178,7 +239,7 @@ deploy_web() {
   # The API URL is baked into the bundle; the agents are proxied at /agents
   # by nginx, so only AGENTS_UPSTREAM changes when the agents app moves.
   build "$WEB_IMAGE" deploy/frontend/Dockerfile \
-    --build-arg "VITE_API_BASE_URL=https://$api"
+    --build-arg "VITE_API_BASE_URL=https://$api" || return 1
   if [[ -n "$agents" ]]; then
     upsert pm-web "$WEB_IMAGE" 80 "${SIZE_WEB[@]}" AGENTS_UPSTREAM="https://$agents"
   else
@@ -187,30 +248,21 @@ deploy_web() {
 }
 
 deploy_hello() {
-  build "$HELLO_IMAGE" deploy/hello/Dockerfile
+  build "$HELLO_IMAGE" deploy/hello/Dockerfile || return 1
   upsert pm-hello "$HELLO_IMAGE" 8000 0.25 0.5Gi 0 1
 }
 
-# Managed identity for Foundry. The system-assigned identity already exists
-# (created with the app for ACR pulls); this grants it "Azure AI User" on the
-# Foundry resource so DefaultAzureCredential / ManagedIdentityCredential get
-# a token. Needs Owner or User Access Administrator on that resource.
+# Foundry access: grant the user-assigned identity "Azure AI User" on the
+# Foundry resource; the agents use it via AZURE_CLIENT_ID. Needs Owner (or
+# User Access Administrator) there, which an Azure for Students owner has.
 setup_foundry() {
-  local principal
-  principal="$(az containerapp identity assign -n pm-agents -g "$RESOURCE_GROUP" \
-    --system-assigned --query principalId -o tsv)"
   if [[ -n "${AZURE_AI_FOUNDRY_RESOURCE_ID:-}" ]]; then
-    log "granting Azure AI User on the Foundry resource to pm-agents ($principal)"
-    az role assignment create --assignee-object-id "$principal" \
-      --assignee-principal-type ServicePrincipal --role "Azure AI User" \
-      --scope "$AZURE_AI_FOUNDRY_RESOURCE_ID" > /dev/null 2>&1 || \
-      log "role assignment failed or exists; check IAM on the Foundry resource"
+    grant "$IDENTITY_PRINCIPAL" "Azure AI User" "$AZURE_AI_FOUNDRY_RESOURCE_ID"
   else
     log "set AZURE_AI_FOUNDRY_RESOURCE_ID to grant access automatically, or in the portal:"
     log "  Foundry resource > Access control (IAM) > Add role assignment > Azure AI User >"
-    log "  Managed identity > Container App > pm-agents  (principal $principal)"
+    log "  Managed identity > $IDENTITY_NAME"
   fi
-  echo "$principal"
 }
 
 # Foundry resource + project + model deployment, all from the CLI. Prints the
@@ -269,28 +321,31 @@ urls() {
   done
 }
 
+prepare() { ensure_env; ensure_identity; docker_login; }
+
 case "$WHAT" in
   setup)   setup; echo "setup done: ./deploy/deploy.sh to deploy" ;;
   foundry-create) foundry_create ;;
+  foundry) ensure_identity; setup_foundry ;;
   pause)   scale_all 0 0 0 ;;
   resume)  scale_all "${SIZE_WEB[2]}" "${SIZE_API[2]}" "${SIZE_AGENTS[2]}" ;;
   teardown)
     read -r -p "Delete resource group $RESOURCE_GROUP and everything in it? Type its name: " ans
     [[ "$ans" == "$RESOURCE_GROUP" ]] || { echo "cancelled"; exit 1; }
     az group delete -n "$RESOURCE_GROUP" --yes --no-wait; echo "deleting $RESOURCE_GROUP" ;;
-  api)     ensure_env; echo "api: $(deploy_api)" ;;
-  agents)  ensure_env; echo "agents: $(deploy_agents)" ;;
-  mcp)     ensure_env; echo "mcp: $(deploy_mcp)/mcp" ;;
-  web)     ensure_env; echo "web: $(deploy_web)" ;;
-  hello)   ensure_env; echo "hello: $(deploy_hello)" ;;
-  foundry) setup_foundry > /dev/null ;;
+  api)     prepare; u=$(deploy_api);    echo "api: $u" ;;
+  agents)  prepare; u=$(deploy_agents); echo "agents: $u" ;;
+  mcp)     prepare; u=$(deploy_mcp);    echo "mcp: $u/mcp" ;;
+  web)     prepare; u=$(deploy_web);    echo "web: $u" ;;
+  hello)   prepare; u=$(deploy_hello);  echo "hello: $u" ;;
   urls)    urls ;;
   all)
-    setup
-    echo "api: $(deploy_api)"
-    echo "agents: $(deploy_agents)"
-    echo "mcp: $(deploy_mcp)/mcp"
-    echo "web: $(deploy_web)"
+    setup; docker_login
+    u=$(deploy_api);    echo "api: $u"
+    u=$(deploy_agents); echo "agents: $u"
+    AGENTS_BUILT=1
+    u=$(deploy_mcp);    echo "mcp: $u/mcp"
+    u=$(deploy_web);    echo "web: $u"
     echo
     echo "Smoke test:  ./deploy/smoke.sh"
     ;;

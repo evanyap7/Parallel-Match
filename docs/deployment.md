@@ -11,7 +11,11 @@ API, the agents API and the MCP history server, all on Azure Container Apps.
 | `pm-history-mcp` | `deploy/Dockerfile`, `PM_SERVICE=mcp` | 8080 | MCP over streamable HTTP at `/mcp` |
 | `pm-hello` | `deploy/hello/Dockerfile` | 8000 | First-hour smoke test only |
 
-Images are built in Azure (`az acr build`), so no local Docker is needed.
+Images are built locally with Docker (`docker buildx`, `linux/amd64`, also on
+Apple Silicon) and pushed to the registry: Azure for Students blocks ACR Tasks
+(`az acr build` fails with `TasksOperationsNotAllowed`). On a subscription
+that allows it, `PM_BUILDER=acr` builds in Azure instead. Docker Desktop must
+be running.
 Everything runs on `PM_AGENT_BACKEND=template` until Foundry is wired, so the
 demo never depends on credits or a model being up.
 
@@ -30,9 +34,11 @@ indonesiacentral, japaneast, koreacentral, eastasia, uaenorth). We use
 `japaneast`: Container Apps and Foundry OpenAI models are both available there,
 and everything sits in one region.
 
-Apps pull from the registry with their own system-assigned managed identity
-(`--registry-identity system`), so the registry needs no admin user and no
-password ends up anywhere.
+All apps share one user-assigned managed identity (`pm-identity`, created by
+`setup` and granted AcrPull). It pulls images and, for the agents, signs in to
+Foundry (`AZURE_CLIENT_ID`). User-assigned because Container Apps *express*
+environments, which a student subscription can get, do not support
+system-assigned identities. No registry password exists anywhere.
 
 ## Cost (Azure for Students, $100 credit)
 
@@ -121,14 +127,15 @@ any origin.
    ```
 
 3. `./deploy/deploy.sh agents`. With `foundry` selected it also grants
-   `pm-agents`' managed identity the **Azure AI User** role on the Foundry
-   resource (needs Owner or User Access Administrator there; otherwise it
-   prints the portal steps). Role assignments can take a few minutes.
+   `pm-identity` the **Azure AI User** role on the Foundry resource (needs
+   Owner or User Access Administrator there; otherwise it prints the portal
+   steps). Role assignments can take a few minutes to apply.
 4. `curl https://pm-agents.<env-domain>/health` shows `provider`,
    `provider_error` and `model_last_error`.
 
 Auth is keyless: in the container `agents/provider.py` uses
-`ManagedIdentityCredential` (Container Apps sets `IDENTITY_ENDPOINT`);
+`ManagedIdentityCredential` with `AZURE_CLIENT_ID` (Container Apps sets
+`IDENTITY_ENDPOINT`);
 locally it uses `DefaultAzureCredential`, so `az login` covers it.
 
 **Fallback stays on.** If Foundry cannot be configured, `/health` reports why
