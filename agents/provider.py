@@ -159,7 +159,7 @@ def _build(backend: str) -> ChatProvider:
             raise RuntimeError("AZURE_AI_FOUNDRY_PROJECT_ENDPOINT is not set")
         return AgentFrameworkProvider(
             project_endpoint=endpoint,
-            model=os.environ.get("AZURE_AI_FOUNDRY_MODEL", "").strip() or "gpt-4o-mini",
+            model=os.environ.get("AZURE_AI_FOUNDRY_MODEL", "").strip() or "gpt-4.1-mini",
         )
     return TemplateProvider()
 

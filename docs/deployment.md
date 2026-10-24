@@ -56,14 +56,14 @@ subscription a monthly free grant (180,000 vCPU-s, 360,000 GiB-s, 2M requests).
 
 | Item | Size | Warm? | ~per day |
 |---|---|---|---|
-| pm-api | 1 vCPU, 2 GiB | min 1 | $0.78 |
+| pm-api | 2 vCPU, 4 GiB | min 1 | $1.56 |
 | pm-agents | 0.5 vCPU, 1 GiB | min 1 | $0.39 |
 | pm-web | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
 | pm-history-mcp | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
 | Registry (Basic) | | | $0.17 |
-| Foundry (gpt-4o-mini) | per call | | cents |
+| Foundry (gpt-4.1-mini) | per call | | cents |
 
-About **$1.75/day, ~$30 to 10 Nov**, before the free grant; active request
+About **$2.5/day, ~$45 to 10 Nov**, before the free grant; active request
 time and image builds add a little. No Log Analytics workspace is created
 (`--logs-destination none`); stream logs with
 `az containerapp logs show -n pm-agents -g <rg> --follow`.
@@ -108,8 +108,8 @@ API=http://localhost:8000 AGENTS=http://localhost:8001 \
 
 (MCP locally: `PM_MCP_HTTP=1 PM_MCP_HOST=0.0.0.0 python -m mcp_history.server`.)
 
-Sizing: featured forks are precomputed; an uncached fork takes about 9 s on
-1 vCPU. The agents and MCP apps replay the 90-match season once at startup
+Sizing: featured forks are precomputed (~1 s); an uncached fork took ~25 s
+live on 1 vCPU, so the API runs on 2. The agents and MCP apps replay the 90-match season once at startup
 (about 6 s, ~140 MB), which is why all four apps stay warm. The Historian
 fetches precedent through `pm-history-mcp` (`PM_HISTORY_MCP_URL`, set by
 `deploy.sh`), falling back to the same function in process if MCP is
@@ -122,7 +122,10 @@ any origin.
 ## 3. Azure AI Foundry (the model behind the agents)
 
 1. `./deploy/deploy.sh foundry-create` creates the Foundry resource, a
-   project and a `gpt-4o-mini` deployment (GlobalStandard, 20K tokens/min),
+   project and a model deployment (GlobalStandard, 20K tokens/min): the first
+   of gpt-4.1-mini, gpt-4.1-nano, gpt-5-mini, gpt-5-nano that the region
+   offers and that is not being retired (gpt-4o-mini 2024-07-18 now refuses
+   new deployments),
    then prints the four `.env` lines below. If a step fails (older CLI, or no
    quota for the model in the region), do that step at ai.azure.com, or set
    `FOUNDRY_MODEL=gpt-4.1-mini` and rerun.
@@ -131,12 +134,15 @@ any origin.
    ```bash
    PM_AGENT_BACKEND=foundry
    AZURE_AI_FOUNDRY_PROJECT_ENDPOINT=https://<res>.services.ai.azure.com/api/projects/<id>
-   AZURE_AI_FOUNDRY_MODEL=gpt-4o-mini
+   AZURE_AI_FOUNDRY_MODEL=gpt-4.1-mini
    AZURE_AI_FOUNDRY_RESOURCE_ID=/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<res>
    ```
 
 3. `./deploy/deploy.sh agents`. With `foundry` selected it also grants
-   `pm-identity` the **Azure AI User** role on the Foundry resource (needs
+   `pm-identity` **Azure AI User** (where the tenant has it), **Cognitive
+   Services OpenAI User** and **Cognitive Services User** on the Foundry
+   resource (the student tenant has no Azure AI User role, and returned 403
+   through the project endpoint until Cognitive Services User was added) (needs
    Owner or User Access Administrator there; otherwise it prints the portal
    steps). Role assignments can take a few minutes to apply.
 4. `curl https://pm-agents.<env-domain>/health` shows `provider`,
