@@ -8,6 +8,7 @@ import unittest
 from agents import historian, intervention, law_explainer, narrator
 from agents.guardrails import check_output
 from agents.provider import phrase
+from mcp_history.precedent import compare_with_simulation, history_for
 from mcp_history.store import default_store
 
 from tests.fixture_ids import FOUL, FORK_M012, NO_FOUL, OFFSIDE, score_text
@@ -16,8 +17,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _store():
-    return default_store(os.path.join(REPO, "fixtures"),
-                         os.path.join(REPO, "data", "dev_season"))
+    return default_store()   # the real 90-match season
 
 
 def _m012():
@@ -43,6 +43,20 @@ class NarratorTests(unittest.TestCase):
         for segment in self.result["script"]:
             with self.subTest(timeline=segment["timeline"]):
                 self.assertEqual(check_output(segment["text"], self.result["facts"]), [])
+
+    def test_outcome_uses_rollout_shares_not_last_winprob(self):
+        verdict = next(s for s in self.result["script"] if s["timeline"] == "verdict")
+        orig = round(FORK_M012["original"]["outcome"]["home"] * 100)
+        alt = round(FORK_M012["alternate"]["outcome"]["home"] * 100)
+        self.assertIn(f"{alt}% of finishes instead of {orig}%", verdict["text"])
+
+    def test_reads_top_level_fork_ids(self):
+        self.assertEqual(self.result["match_id"], FORK_M012["match_id"])
+        self.assertEqual(self.result["event_id"], FORK_M012["event_id"])
+
+    def test_alternate_call_is_named(self):
+        alternate = next(s for s in self.result["script"] if s["timeline"] == "alternate")
+        self.assertNotIn("the decision is changed", alternate["text"])
 
     def test_scores_come_from_the_fork_response(self):
         verdict = next(s for s in self.result["script"] if s["timeline"] == "verdict")
@@ -78,25 +92,49 @@ class LawExplainerTests(unittest.TestCase):
 
 
 class HistorianTests(unittest.TestCase):
+    def setUp(self):
+        self.fork = json.load(open(os.path.join(REPO, "fixtures", "fork_m052.json")))
+        self.block = history_for(self.fork["match_id"], self.fork["event_id"])
+
+    def test_same_numbers_as_fork_history(self):
+        # One precedent source: the Historian and POST /fork never disagree.
+        for key in ("n", "when_given", "when_not_given", "attacking_team",
+                    "history_shift_att_win"):
+            with self.subTest(key=key):
+                self.assertEqual(self.block[key], self.fork["history"][key])
+
     def test_phrases_only_computed_numbers(self):
-        store = _store()
-        event, _ = store.event("m012", FOUL)
-        result = historian.run(store.match("m012"), event, store.query("m012", FOUL))
+        result = historian.run(None, None, self.block)
         self.assertEqual(check_output(result["text"], result["facts"]), [])
-        stats = result["stats"]
-        self.assertIn(f"{stats['n']} moment", result["text"])
-        self.assertIn(f"{stats['n_other_call']} of them", result["text"])
+        self.assertIn(f"{self.block['n']} comparable", result["text"])
+        self.assertIn(f"({self.block['when_given']['n']} cases)", result["text"])
+
+    def test_states_simulation_and_agreement(self):
+        block = compare_with_simulation(self.block, self.fork)
+        result = historian.run(None, None, block)
+        self.assertEqual(check_output(result["text"], result["facts"]), [])
+        self.assertIn("paired simulation", result["text"])
+        self.assertEqual(result["agrees_with_simulation"],
+                         self.fork["history"]["agrees_with_simulation"])
+
+    def test_disagreement_is_said_plainly(self):
+        block = {**self.block, "sim_shift_att_win": 0.2,
+                 "history_shift_att_win": -0.1, "agrees_with_simulation": False}
+        result = historian.run(None, None, block)
+        self.assertIn("These disagree", result["text"])
+        self.assertEqual(check_output(result["text"], result["facts"]), [])
+
+    def test_small_sample_gives_no_estimate(self):
+        block = {**self.block, "history_shift_att_win": None}
+        self.assertIn("fewer than 5 cases", historian.run(None, None, block)["text"])
 
     def test_empty_history_says_so(self):
-        match = {"match_id": "mX", "home": "HAR", "away": "NOR", "score": [0, 0],
-                 "events": [{"id": "mX-0001", "min": "5", "t": 300, "type": "foul",
-                             "team": "HAR", "player": "H7", "xy": [90, 34],
-                             "contact": 0.5, "margin": 0.0, "call": "free_kick",
-                             "law": "Law 12", "score": [0, 0], "step": 1, "period": 1}]}
-        from mcp_history.store import HistoryStore, QueryResult
-        store = HistoryStore([match])
-        result = historian.run(match, match["events"][0], store.query("mX", "mX-0001"))
+        result = historian.run(None, None, {"n": 0})
         self.assertIn("No comparable moment", result["text"])
+
+    def test_non_call_is_none(self):
+        kickoff = self.fork["match_id"] + "-0001"
+        self.assertIsNone(history_for(self.fork["match_id"], kickoff))
 
 
 class ProviderPipelineTests(unittest.TestCase):
@@ -136,6 +174,55 @@ class ProviderPipelineTests(unittest.TestCase):
         text, fell_back = phrase(Boom(), "sys", self.FACTS, "Template at 52'.")
         self.assertTrue(fell_back)
         self.assertEqual(text, "Template at 52'.")
+
+
+class ProviderSelectionTests(unittest.TestCase):
+    """Foundry misconfiguration never takes the service down."""
+
+    def setUp(self):
+        from agents import provider
+        self.provider = provider
+        self._env = {k: os.environ.get(k) for k in
+                     ("PM_AGENT_BACKEND", "AZURE_AI_FOUNDRY_PROJECT_ENDPOINT")}
+        provider.reset_provider()
+
+    def tearDown(self):
+        for k, v in self._env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        self.provider.reset_provider()
+
+    def test_foundry_without_endpoint_falls_back_to_template(self):
+        os.environ["PM_AGENT_BACKEND"] = "foundry"
+        os.environ.pop("AZURE_AI_FOUNDRY_PROJECT_ENDPOINT", None)
+        p = self.provider.get_provider()
+        self.assertEqual(p.name, "template")
+        self.assertIn("AZURE_AI_FOUNDRY_PROJECT_ENDPOINT", self.provider.provider_error())
+
+    def test_failed_model_call_cools_down(self):
+        AFP = self.provider.AgentFrameworkProvider
+        p = AFP.__new__(AFP)          # no Azure client needed
+        p.timeout_s, p.cooldown_s, p._down_until, p.last_error = 1, 60, 0.0, None
+
+        class Loop:
+            calls = 0
+
+            def run(self, coro, timeout):
+                Loop.calls += 1
+                raise TimeoutError("model down")
+
+        class Agent:
+            def run(self, prompt):
+                return None
+
+        p._loop, p._agent = Loop(), Agent()
+        for _ in range(3):
+            text, fell_back = phrase(p, "sys", {"min": "52"}, "Template at 52'.")
+            self.assertTrue(fell_back)
+            self.assertEqual(text, "Template at 52'.")
+        self.assertEqual(Loop.calls, 1)   # one timeout, then the cooldown
 
 
 class InterventionTests(unittest.TestCase):

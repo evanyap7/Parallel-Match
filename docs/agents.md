@@ -1,7 +1,7 @@
 # Agents and the MCP history server
 
-Status: working against the contract fixtures and a generated dev season.
-No cloud credentials needed to run any of it locally.
+Status: working against the real 90-match season (the same one the simulator
+API serves). No cloud credentials needed to run any of it locally.
 
 ## The one rule
 
@@ -47,10 +47,9 @@ are handled explicitly.
   `FoundryChatClient` against the Azure AI Foundry project. Default
   everywhere else is the deterministic `TemplateProvider`, so dev, CI and a
   credits-outage demo all behave identically.
-- **MCP**: the season history query is exposed as MCP tools
-  (`history_query`, `season_summary`) by `mcp_history/server.py`. The
-  Historian uses the same `HistoryStore` in process; any MCP client can use
-  the server. In the Foundry deployment an Agent Framework agent can attach
+- **MCP**: precedent is exposed as MCP tools (`history_query`,
+  `season_summary`) by `mcp_history/server.py`. The Historian calls the same
+  `history_for` in process; any MCP client can use the server. In the Foundry deployment an Agent Framework agent can attach
   the tool with `MCPStreamableHTTPTool` against the deployed `pm-history-mcp`
   app (both are wired in `deploy/deploy.sh`).
 - **Azure Container Apps**: one image, two apps (`pm-agents`, `pm-history-mcp`)
@@ -60,7 +59,7 @@ are handled explicitly.
 
 ```bash
 pip install -e ".[agents,mcp]"          # or nothing: core agents run dep-free
-python -m unittest discover -s tests -t .   # 69 tests, no deps required
+python -m pytest -q                          # full suite
 
 # agents REST API
 uvicorn agents.server:app --port 8001
@@ -77,24 +76,51 @@ API endpoints: `GET /health`, `POST /narrate`, `POST /explain`,
 
 ## Season data
 
-`mcp_history` reads match JSON from `PM_FIXTURES_DIR` (default `fixtures/`)
-and `PM_HISTORY_DIR` (default `data/dev_season/`). The dev season is ten
-generated matches (`tools/make_dev_season.py`, seeds 1-10, ~1,500 contestable
-moments across 11 matches with m012). When Evan's 90-match season lands it
-replaces `data/dev_season/` file-for-file and nothing else changes. In
-deployment, both directories are baked into the image; swap to a volume or
-Fabric export by pointing the env vars elsewhere.
+The agents and the MCP server read the real 90-match season: fixtures and
+seeds from `parallel_match/data/season.json`, replayed once per process at
+startup (`mcp_history/season_source.py`, a few seconds). The match JSON is
+identical to `GET /match/{id}` on the simulator API. `data/dev_season/` and
+`tools/make_dev_season.py` are retired.
 
-## Comparable-moment query (the Historian's tool)
+## Precedent: one source (the Historian's tool)
 
-A moment is comparable when it is in the same decision family with a similar
-measured quantity:
+Every precedent number comes from `history_for(match_id, event_id)`
+(`mcp_history/precedent.py`), which returns the same shape and the same
+numbers as the `history` block of `POST /fork`:
 
-- **contact family** (foul / tackle / dribble, Law 12): `|contact difference| <= 0.2`
-- **offside family** (offside / borderline onside pass, Law 11): `|margin difference| <= 0.4 m`
+```
+{n, description, when_given: {n, win, goal_10}, when_not_given: {...},
+ attacking_team, history_shift_att_win, note}
+```
 
-Pitch zone (same attacking frame, away-team x mirrored) and clock proximity
-(15 min) add tie-break bonuses. The queried match is excluded by default so
-precedent comes from other matches. For every comparable the store also
-computes whether the benefiting team scored within 15 minutes - that is the
-"in N comparable moments this season..." number, in plain code.
+Comparable decisions: same family (foul or offside), same pitch zone, same
+score state, same minute band, borderline margin (`|margin| < 0.15`). Within
+them, `when_given` / `when_not_given` give the attacking team's win share and
+its chance of scoring within 10 minutes. `history_shift_att_win` is
+precedent's estimate of flipping the call (null when either group has fewer
+than 5 cases).
+
+When `parallel_match.history.history_for` exists (Evan's wrapper), it is
+called directly. Until then `mcp_history/precedent.py` computes the block from
+the same `parallel_match.history` functions `/fork` uses, so the numbers
+already match; tests assert this against `fixtures/fork_m052.json`.
+
+`POST /precedents` takes an optional `fork_response`. With it, the response
+adds `sim_shift_att_win` and `agrees_with_simulation`, and the Historian's
+text says "These disagree" when they do. Response:
+
+```
+{match_id, event_id, history, agrees_with_simulation, text, facts, fell_back}
+```
+
+The old `HistoryStore.query` (contact/margin tolerance search) is no longer
+used by any service; `HistoryStore` remains as the event index for `/explain`
+and `/parse`.
+
+## Narrator outcome line
+
+The verdict states rollout shares from the fork point
+(`original.outcome` / `alternate.outcome`), e.g. "Model world over 500
+rollouts from this moment: Westfield Rangers win 15% of finishes instead of
+29%". It no longer uses the final win-probability point, which is ~0 or ~1 at
+full time.

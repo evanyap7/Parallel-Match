@@ -143,14 +143,14 @@ cd frontend && npm install && npm run dev
   `season.py`, `history.py` (precedent), `api.py` (FastAPI), `realism.py`, `cli.py`
 - `parallel_match/data/` season fixtures, win-probability table, precomputed forks
 - `agents/` phrasing agents + FastAPI service; `mcp_history/` season history
-  query + MCP server; `tools/make_dev_season.py` dev-season generator
+  precedent (same `history_for` source as `/fork`) + MCP server on the real season
 - `frontend/` React match viewer (Uwais)
 - `tests/` determinism, state copy, rules, fork engine, API, realism,
   agents, guardrails, history store
 - `docs/` event schema, API, history query for Fabric, build plan, `agents.md`,
   `deployment.md` (Azure runbook), `uwais/` demand check, demo script, rival review
-- `fixtures/` sample match and fork responses for front-end work;
-  `data/dev_season/` ten generated matches for the Historian (dev stand-in for the real season)
-- `deploy/` Container Apps deploy script, agents Dockerfile, hello-world smoke app
+- `fixtures/` sample match and fork responses for front-end work
+- `deploy/` Container Apps deploy script (simulator API, agents, MCP, front end),
+  agents Dockerfile, front-end Dockerfile, hello-world smoke app
 - `reports/realism_v1.md` latest realism report
 - `Dockerfile` the simulator API image for Azure Container Apps
