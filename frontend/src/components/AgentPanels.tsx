@@ -26,7 +26,7 @@ function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
 }
 function AgentState({ error, retry }: { error?: string; retry: () => void }) {
   return (
-    <p className="small muted" role={error ? "status" : undefined}>
+    <p className="small muted" role="status">
       {error ?? "Consulting the agent…"}{" "}
       {error && (
         <button className="text-button" onClick={retry}>
@@ -39,7 +39,7 @@ function AgentState({ error, retry }: { error?: string; retry: () => void }) {
 function Source({ data }: { data: { fell_back: boolean } }) {
   return (
     <span className="small-label">
-      {data.fell_back ? "GUARDED TEMPLATE FALLBACK" : "AGENT SERVICE OUTPUT"}
+      {data.fell_back ? "Guarded template fallback" : "Agent service output"}
     </span>
   );
 }
@@ -70,7 +70,10 @@ export function AgentLaw({
       <h4>Law Explainer</h4>
       {state.data ? (
         <>
-          <p>{state.data.text}</p>
+          <details className="law-details">
+            <summary>Read the full explanation</summary>
+            <p>{state.data.text}</p>
+          </details>
           <Source data={state.data} />
         </>
       ) : (
@@ -91,10 +94,10 @@ export function AgentNarrative({ result }: { result: ForkResult }) {
         <div className="narrative-grid">
           {["real", "alternate"].map((side) => (
             <div key={side}>
-              <span className="eyebrow muted">
+              <span className="timeline-name">
                 {side === "real"
-                  ? "RECORDED TIMELINE"
-                  : "ALTERNATE · MODEL WORLD"}
+                  ? "Recorded timeline"
+                  : "Alternate, model world"}
               </span>
               <p>
                 {
@@ -138,7 +141,7 @@ export function AgentHistory({ result }: { result: ForkResult }) {
   return (
     <section className="agent-history" aria-label="Historian agent">
       <div className="section-title">
-        <h3>Historian</h3>
+        <h4>Historian</h4>
         {state.data && <Source data={state.data} />}
       </div>
       {state.data ? (

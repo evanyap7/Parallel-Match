@@ -72,3 +72,19 @@ Run `uvicorn agents.server:app --port 8001` in a third terminal. The Vite develo
 The viewer calls `/explain` on moment selection, `/narrate` after a fork and `/precedents` for an officiating comparison. Free text calls `/parse` before `/fork`. Outputs are validated against the request, requests abort on changed selections, and errors have retry states. The header reports the service's template or Foundry provider mode.
 
 For production, supply a same-origin `/agents` proxy or an HTTPS service URL with appropriate CORS support. See `.env.example` and `../docs/uwais/remaining-status.md` for the compatibility table, service handoffs and deployment checks. The earlier paragraph describing these panels as unimplemented is superseded by this integration section.
+
+## Look and feel
+
+Light "matchday editorial" style (achromatic ledger). The one rule to keep when editing:
+**ink means the real match, the single blue (`--hue`) means the alternate world where the
+decision changed.** Nothing else is coloured, so colour always says "this is the changed
+timeline". Details:
+
+- Tokens live at the top of `src/styles.css` (`--ground`, `--surface`, `--ink`, `--hue`).
+  Pitch and chart SVG colours come from the same variables.
+- Flat surfaces: a 1px edge and one tone step, no shadows or gradients.
+- Geist for all text, tabular figures, nothing under 12px.
+- Primary actions are near-black. The real timeline is solid ink; the alternate line in the
+  chart is dashed blue, so the two stay distinguishable without colour.
+- Check a change with the design-taste inspector (`node <skill>/scripts/inspect.mjs --app
+  <url>`) and `npm test && npm run build`.

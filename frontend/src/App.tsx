@@ -1,18 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
   ArrowRight,
   Check,
   ChevronRight,
   CircleHelp,
-  Flag,
   GitBranch,
   LoaderCircle,
   Pause,
   Play,
   RotateCcw,
   ShieldCheck,
-  Sparkles,
   X,
 } from "lucide-react";
 import {
@@ -89,6 +86,7 @@ export default function App() {
   useEffect(() => {
     if (!showHelp) return;
     const returnFocus = document.activeElement as HTMLElement | null;
+    helpRef.current?.querySelector<HTMLElement>("button")?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setShowHelp(false);
@@ -292,7 +290,6 @@ export default function App() {
             <GitBranch size={23} />
           </span>
           parallel<span className="brand-light">match</span>
-          <span className="beta">LAB</span>
         </a>
         <div className="topbar-right">
           <AgentStatus />
@@ -309,13 +306,9 @@ export default function App() {
           </button>
         </div>
       </header>
-      <main id="main">
+      <main id="main" tabIndex={-1}>
         <div className="page-intro">
           <div>
-            <div className="eyebrow lime">
-              <span className="tiny-line" />
-              THE MATCH, RECONSIDERED
-            </div>
             <h1>
               One decision.
               <br />
@@ -328,7 +321,7 @@ export default function App() {
           </div>
           <div className="intro-side">
             <span className="model-stamp">
-              <ShieldCheck size={16} /> MODEL WORLD
+              <ShieldCheck size={16} /> Model world
             </span>
             <p>
               Fictional clubs. Synthetic events.
@@ -354,9 +347,16 @@ export default function App() {
           </div>
         ) : (
           <>
+            <div className="sr-only" role="status" aria-live="polite">
+              {forkLoading
+                ? "Running the comparison."
+                : result
+                  ? `Comparison ready: ${result.description}`
+                  : ""}
+            </div>
             <div className="match-toolbar">
               <div className="fixture-title">
-                <span className="league-label">THE SYNTHETIC LEAGUE</span>
+                <span className="league-label">The synthetic league</span>
                 <h2>
                   {clubName(match.home)} <span>vs</span> {clubName(match.away)}
                 </h2>
@@ -379,7 +379,11 @@ export default function App() {
                     </select>
                   </label>
                 )}
-                <div className="segmented" aria-label="Explanation detail">
+                <div
+                  className="segmented"
+                  role="group"
+                  aria-label="Explanation detail"
+                >
                   <button
                     aria-pressed={view === "fan"}
                     className={view === "fan" ? "active" : ""}
@@ -498,6 +502,9 @@ export default function App() {
                           key={e.id}
                           aria-label={`Select ${readable(e.type)} at ${e.min} minutes`}
                           title={`${e.min}′ · ${readable(e.type)}`}
+                          aria-current={
+                            e.id === selectedId ? "true" : undefined
+                          }
                           className={e.id === selectedId ? "selected" : ""}
                           style={{ left: `${(e.t / end) * 100}%` }}
                           onClick={() => chooseMoment(e)}
@@ -510,7 +517,7 @@ export default function App() {
                             left: `${(result.divergence.t / end) * 100}%`,
                           }}
                         >
-                          <GitBranch size={12} /> FORK {result.divergence.min}′
+                          <GitBranch size={12} /> Fork {result.divergence.min}′
                         </span>
                       )}
                     </div>
@@ -530,10 +537,8 @@ export default function App() {
                 </section>
                 <section className="live-stats card">
                   <div className="section-title">
-                    <h3>
-                      <Activity size={15} /> Match pulse
-                    </h3>
-                    <span className="small-label">AT {clockLabel(time)}</span>
+                    <h3>Match pulse</h3>
+                    <span className="small-label">At {clockLabel(time)}</span>
                   </div>
                   <div className="stats-row">
                     <div>
@@ -562,7 +567,7 @@ export default function App() {
                           .map((n, i) =>
                             n
                               ? `${Math.round((stats.completed[i] / n) * 100)}%`
-                              : "—",
+                              : "\u2013",
                           )
                           .join(" / ")}
                       </strong>
@@ -582,18 +587,27 @@ export default function App() {
                       </span>
                       <span className="small-label">
                         {result.placeholder
-                          ? "NOT MEASURED RESULTS"
-                          : "NOT A PREDICTION"}
+                          ? "Not measured results"
+                          : "Not a prediction"}
                       </span>
                     </div>
                     <div className="insights-grid">
                       <ProbabilityChart result={result} home={match.home} />
                       <section className="verdict card">
                         <div className="section-title">
-                          <h3>
-                            <Sparkles size={15} /> The turning point
-                          </h3>
+                          <h3>The turning point</h3>
                         </div>
+                        <strong className="delta">
+                          {points(
+                            result.outcome_shift[
+                              focus === match.away ? "away" : "home"
+                            ],
+                          )}
+                        </strong>
+                        <span className="delta-label">
+                          {focus} win probability,{" "}
+                          {result.rollouts.toLocaleString()} paired rollouts
+                        </span>
                         <p className="verdict-text">
                           {comparisonSummary(result, focus, side)}
                         </p>
@@ -638,15 +652,13 @@ export default function App() {
                         <h3>Behind the comparison</h3>
                         <span className="small-label">
                           {result.placeholder
-                            ? "SAMPLE EVIDENCE ONLY"
-                            : "SIMULATION & PRECEDENT"}
+                            ? "Sample evidence only"
+                            : "Simulation and precedent"}
                         </span>
                       </div>
                       <div className="evidence-grid">
                         <div>
-                          <span className="eyebrow muted">
-                            01 / RE-SIMULATION
-                          </span>
+                          <span className="evidence-label">Re-simulation</span>
                           <strong className="impact-number">
                             {points(
                               result.outcome_shift[
@@ -664,11 +676,11 @@ export default function App() {
                           </small>
                         </div>
                         <div>
-                          <span className="eyebrow muted">
-                            02 / SEASON PRECEDENT
+                          <span className="evidence-label">
+                            Season precedent
                           </span>
                           <strong className="impact-number">
-                            {result.history?.n ?? "—"}
+                            {result.history?.n ?? "\u2013"}
                             <span className="impact-unit">moments</span>
                           </strong>
                           <p>
@@ -744,7 +756,6 @@ export default function App() {
                     <h3>
                       <GitBranch size={16} /> Your turning point
                     </h3>
-                    <span className="step-tag">01</span>
                   </div>
                   {selected ? (
                     <>
@@ -755,9 +766,9 @@ export default function App() {
                           {readable(selected.type)}
                         </span>
                       </div>
-                      <h3 className="decision-question">
+                      <h4 className="decision-question">
                         What if the decision changed?
-                      </h3>
+                      </h4>
                       <p className="decision-description">
                         {view === "fan"
                           ? `At ${selected.min}′, ${selected.team} player ${selected.player} was involved in a ${readable(selected.type)} decision. Explore how a different call could affect what follows.`
@@ -928,12 +939,14 @@ export default function App() {
                 </section>
                 <section className="moments-card card">
                   <div className="section-title">
-                    <h3>
-                      <Flag size={15} /> Decision timeline
-                    </h3>
+                    <h3>Decision timeline</h3>
                     <span className="count">{filtered.length}</span>
                   </div>
-                  <div className="filter-row">
+                  <div
+                    className="filter-row"
+                    role="group"
+                    aria-label="Filter moments"
+                  >
                     {[
                       ["all", "All"],
                       ["foul", "Contact"],
@@ -954,6 +967,7 @@ export default function App() {
                     {filtered.map((e) => (
                       <button
                         className={`moment-item ${e.id === selectedId ? "active" : ""}`}
+                        aria-current={e.id === selectedId ? "true" : undefined}
                         key={e.id}
                         onClick={() => chooseMoment(e)}
                       >
@@ -975,7 +989,7 @@ export default function App() {
                   </div>
                 </section>
                 <div className="focus-card">
-                  <span className="eyebrow muted">YOUR PERSPECTIVE</span>
+                  <span className="focus-title">Your perspective</span>
                   <label htmlFor="club-focus">Follow a club</label>
                   <select
                     id="club-focus"
@@ -996,7 +1010,7 @@ export default function App() {
         )}
         <footer>
           <span>
-            <GitBranch size={15} /> PARALLEL MATCH
+            <GitBranch size={15} /> Parallel Match
           </span>
           <span>Synthetic by design. Transparent by default.</span>
           <button className="text-button" onClick={() => setShowHelp(true)}>
@@ -1015,14 +1029,12 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              autoFocus
               className="icon-button close-modal"
               aria-label="Close about panel"
               onClick={() => setShowHelp(false)}
             >
               <X size={20} />
             </button>
-            <span className="eyebrow lime">MODEL WORLD</span>
             <h2>
               Explore possibilities.
               <br />
