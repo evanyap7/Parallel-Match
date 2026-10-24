@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "request": {
+    "match_id": "m052",
+    "event_id": "m052-0715",
+    "change": {
+      "type": "flip_call",
+      "call": "no_foul"
+    }
+  },
+  "other_candidates": [
+    {
+      "type": "flip_call",
+      "call": "free_kick"
+    }
+  ]
+}

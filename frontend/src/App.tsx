@@ -41,6 +41,14 @@ import {
 } from "./model";
 import { Pitch } from "./components/Pitch";
 import { ProbabilityChart } from "./components/ProbabilityChart";
+import { parseWhatIf } from "./agents";
+import { toEngineChange } from "./parser-adapter";
+import {
+  AgentStatus,
+  AgentLaw,
+  AgentNarrative,
+  AgentHistory,
+} from "./components/AgentPanels";
 import { DecisionControls } from "./components/DecisionControls";
 import type {
   Change,
@@ -71,6 +79,7 @@ export default function App() {
   const [view, setView] = useState<"fan" | "analyst">("fan");
   const [focus, setFocus] = useState("");
   const [result, setResult] = useState<ForkResult>();
+  const [whatIf, setWhatIf] = useState("");
   const [forkError, setForkError] = useState("");
   const [forkLoading, setForkLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -228,11 +237,12 @@ export default function App() {
     setForkError("");
     setSelectedId(event.id);
     setCustomChange(undefined);
+    setWhatIf("");
     setTime(event.t);
     setPlaying(false);
   }
-  async function explore() {
-    if (!match || !selected || !change || !changeReady) return;
+  async function explore(fromText = false) {
+    if (!match || !selected || (!fromText && (!change || !changeReady))) return;
     forkController.current?.abort();
     const ctrl = new AbortController();
     forkController.current = ctrl;
@@ -241,8 +251,19 @@ export default function App() {
     setResult(undefined);
     setPlaying(false);
     try {
+      const resolved = fromText
+        ? toEngineChange(
+            await parseWhatIf(
+              whatIf,
+              { match_id: match.match_id, event_id: selected.id },
+              ctrl.signal,
+            ),
+            selected,
+          )
+        : change!;
+      if (ctrl.signal.aborted) return;
       const response = await getFork(
-        { match_id: match.match_id, event_id: selected.id, change },
+        { match_id: match.match_id, event_id: selected.id, change: resolved },
         ctrl.signal,
       );
       if (ctrl.signal.aborted) return;
@@ -274,6 +295,7 @@ export default function App() {
           <span className="beta">LAB</span>
         </a>
         <div className="topbar-right">
+          <AgentStatus />
           <span className="source-pill">
             <span className="status-dot" />
             {sourceMode === "fixtures" ? "Offline simulation" : "Live engine"}
@@ -405,6 +427,12 @@ export default function App() {
                     divergence={result?.divergence.t}
                   />
                 </div>
+                {result && (
+                  <AgentNarrative
+                    key={`${match.match_id}:${selectedId}:${attempt}`}
+                    result={result}
+                  />
+                )}
                 <section
                   className="transport card"
                   aria-label="Replay controls"
@@ -670,6 +698,12 @@ export default function App() {
                           </small>
                         </div>
                       </div>
+                      {result.change.type === "flip_call" && (
+                        <AgentHistory
+                          key={`${match.match_id}:${selectedId}:${attempt}`}
+                          result={result}
+                        />
+                      )}
                       <div
                         className={`agreement ${result.history?.agrees_with_simulation === false ? "disagrees" : ""}`}
                       >
@@ -782,7 +816,7 @@ export default function App() {
                       <button
                         className="primary explore"
                         disabled={!changeReady || !canMock || forkLoading}
-                        onClick={explore}
+                        onClick={() => explore()}
                       >
                         {forkLoading ? (
                           <>
@@ -834,6 +868,45 @@ export default function App() {
                           : "Runs a model comparison using the API."}{" "}
                         A possibility, not a prediction.
                       </p>
+                      {sourceMode === "api" && (
+                        <form
+                          className="what-if"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void explore(true);
+                          }}
+                        >
+                          <label htmlFor="what-if">Your what if…</label>
+                          <textarea
+                            id="what-if"
+                            maxLength={500}
+                            value={whatIf}
+                            onChange={(e) => setWhatIf(e.target.value)}
+                            placeholder="What if that was no foul?"
+                          />
+                          <button
+                            className="primary"
+                            disabled={!whatIf.trim() || forkLoading}
+                          >
+                            Parse and explore
+                          </button>
+                          <p className="small muted">
+                            Supports removing a foul, reversing offside, or
+                            scoring a missed shot. Other requests show the
+                            parser’s response or an unsupported-case reason.
+                          </p>
+                          {result && (
+                            <p className="small">
+                              Sent to the fork: {result.description}.
+                            </p>
+                          )}
+                        </form>
+                      )}
+                      <AgentLaw
+                        key={`${match.match_id}:${selectedId}`}
+                        matchId={match.match_id}
+                        event={selected}
+                      />
                       <div className="law-box">
                         <ShieldCheck size={16} />
                         <div>

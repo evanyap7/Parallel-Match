@@ -1,0 +1,31 @@
+{
+  "event_id": "m052-0715",
+  "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+  "text": "At 56', a foul moment involving C3 (Copperfield FC) against Westfield Rangers: a penalty kick was awarded. Measured contact was 0.54, sitting 0.00 below the judgement threshold, so the decision was close to the boundary. Under Law 12: Fouls and Misconduct (direct free kick offences): A direct free kick is awarded if a player commits any of a list of offences against an opponent in a manner considered careless, reckless or using excessive force - including trips, kicks, jumps at, charges, strikes, pushes and holds. Inside the penalty area, such an offence by the defending team is punished with a penalty kick instead. Carelessness is a judgement of degree: the referee weighs how much contact occurred and its consequence for the opponent. Contact near the threshold of a careless challenge can reasonably be judged either way at full speed.",
+  "facts": {
+    "match_id": "m052",
+    "home": "Westfield Rangers",
+    "away": "Copperfield FC",
+    "min": "56",
+    "type": "foul",
+    "team": "Copperfield FC",
+    "opponent": "Westfield Rangers",
+    "player": "C3",
+    "call": "penalty",
+    "contact": 0.542,
+    "margin": -0.002,
+    "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+    "score_at": [
+      0,
+      1
+    ],
+    "contestable": true,
+    "law_statement": "A direct free kick is awarded if a player commits any of a list of offences against an opponent in a manner considered careless, reckless or using excessive force - including trips, kicks, jumps at, charges, strikes, pushes and holds. Inside the penalty area, such an offence by the defending team is punished with a penalty kick instead.",
+    "law_judgement": "Carelessness is a judgement of degree: the referee weighs how much contact occurred and its consequence for the opponent. Contact near the threshold of a careless challenge can reasonably be judged either way at full speed.",
+    "call_phrase": "a penalty kick was awarded",
+    "contact_display": "0.54",
+    "margin_display": "0.00",
+    "margin_side": "below"
+  },
+  "fell_back": false
+}

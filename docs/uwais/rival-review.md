@@ -24,3 +24,7 @@ An attempt to retrieve the [public site](https://hudhud.com.pk/) failed through 
 2. Include an evidence panel with uncertainty and disagreement handling.
 3. Keep source labels on the recorded screen, including fixture limitations.
 4. Prefer a complete, short interaction over an extensive feature tour.
+
+## Agent-integration refresh
+
+Reopened Football Universe Copilot on 24 October 2026. Its public page still exposes replay, personas, a visible agent pipeline and an explicitly labelled static template fallback. Its Poisson what-if section says it changes probability calculations rather than the simulated result. This supports keeping our demo centred on a specific event intervention and its replayed continuation. No Azure action was invoked and no latency or deployment claim was verified.

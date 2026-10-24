@@ -33,3 +33,7 @@ Values above are simulator results, not real-football forecasts. Browser verific
 - `demo-preview.mp4` is the older placeholder UI preview; it is not evidence of this integrated version. Use the updated demo script for a final recording after the agent track is connected.
 
 Final frontend checks: 77 tests passed; TypeScript and Vite production build passed; git diff whitespace check passed.
+
+## Agent UI verification
+
+Updated to main fb6432e, with edits confined to frontend/ and docs/uwais/. All 92 frontend tests passed. Browser checks against the local simulator and agent APIs confirmed both timeline scripts, neutral law explanation, separately labelled development-history output, and `What if that was no foul?` reaching /parse then /fork. The returned description was `no foul given instead of a penalty`. Asking for the already-recorded penalty displayed the exact parser refusal. Browser console had no errors. Service output samples are saved as test fixtures. Remaining cloud and service handoffs are listed in remaining-status.md.

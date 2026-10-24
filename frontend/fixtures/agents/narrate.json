@@ -1,0 +1,65 @@
+{
+  "match_id": "m052",
+  "event_id": "m052-0715",
+  "script": [
+    {
+      "timeline": "real",
+      "text": "At 56', a penalty kick was awarded in the recorded match: the real timeline runs on and finishes WES 2-1 COP."
+    },
+    {
+      "timeline": "divergence",
+      "text": "Both timelines share every event up to 56', then diverge."
+    },
+    {
+      "timeline": "alternate",
+      "text": "In the alternate timeline the same moment is re-judged: the decision is changed. The simulation plays on from there and finishes WES 1-1 COP."
+    },
+    {
+      "timeline": "verdict",
+      "text": "Turning point at 56': the decision is changed, so the model world finishes WES 1-1 COP against the recorded WES 2-1 COP. Model world: the home win probability finishes at 0% instead of 100%."
+    }
+  ],
+  "facts": {
+    "match_id": "m052",
+    "event_id": "m052-0715",
+    "change": {
+      "type": "flip_call"
+    },
+    "divergence_min": "56",
+    "moment_type": "foul",
+    "moment_call": "penalty",
+    "moment_contact": 0.542,
+    "moment_margin": -0.002,
+    "original_final_score": [
+      2,
+      1
+    ],
+    "alternate_final_score": [
+      1,
+      1
+    ],
+    "original_last_winprob": {
+      "minute": 95,
+      "min": "90+3",
+      "home": 1.0,
+      "draw": 0.0,
+      "away": 0.0
+    },
+    "alternate_last_winprob": {
+      "minute": 95,
+      "min": "90+3",
+      "home": 0.0,
+      "draw": 1.0,
+      "away": 0.0
+    },
+    "placeholder": false,
+    "home_label": "WES",
+    "away_label": "COP",
+    "moment_call_phrase": "a penalty kick was awarded",
+    "alternate_call_phrase": "the decision is changed",
+    "original_home_win_pct": 100,
+    "alternate_home_win_pct": 0,
+    "winprob_shift_sentence": "Model world: the home win probability finishes at 0% instead of 100%."
+  },
+  "fell_back": false
+}

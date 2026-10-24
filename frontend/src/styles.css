@@ -1416,3 +1416,59 @@ footer > span:first-child {
 .decision-controls input {
   width: 100%;
 }
+
+.agent-status {
+  color: #adb8b9;
+  font-size: 11px;
+}
+.agent-narrative {
+  margin-top: 14px;
+  padding: 20px;
+}
+.narrative-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.narrative-grid p,
+.agent-history p,
+.agent-law p {
+  font-size: 12px;
+  line-height: 1.65;
+}
+.agent-law,
+.agent-history {
+  border-top: 1px solid #ffffff15;
+  margin-top: 18px;
+  padding-top: 16px;
+}
+.agent-law h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.what-if {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+.what-if textarea {
+  width: 100%;
+  min-height: 76px;
+  padding: 10px;
+  color: #e6eded;
+  background: #10191c;
+  border: 1px solid #ffffff25;
+  border-radius: 8px;
+  resize: vertical;
+  font: inherit;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .narrative-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .agent-status {
+    max-width: 90px;
+  }
+}
