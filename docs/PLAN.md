@@ -66,21 +66,34 @@ not. Free text parsed into one of these is the first thing we cut.
 
 ## Tracks
 
-### Evan: simulator, forks, season, API
+### Evan: simulator, forks, season, API (DONE, generator spec frozen)
 
-1. Contract fixture and push (so the others can start)
-2. Fork engine: `fork(match, event_id, change)` copies the state at that moment, applies
-   one change, plays on. A fork with no change must reproduce the original exactly.
-3. Paired randomness: original and altered runs share random numbers until they diverge
-4. About 500 rollouts for the win-probability shift, plus one typical timeline kept for
-   the parallel broadcast
-5. Fork speed: one rollout from mid-match is currently about 80 ms, so 500 rollouts take
-   about 40 s on one core. We need seconds. Use multiple cores, fewer rollouts for the
-   live view, and precompute forks for flagged moments. Measure, do not assume.
-6. Season: 90 matches (double round robin), plus planted memorable matches found by
-   running many seeds (a 5-4 comeback, a very early red card). Still generated, just
-   selected.
-7. FastAPI service with the endpoints above. Freeze the generator spec once it works.
+1. [x] Contract fixture and push
+2. [x] Fork engine (`parallel_match/fork.py`): replays to the moment, applies one change,
+   plays on. Changes: flip a call, card, shot outcome, substitution, tactics, player
+   unavailable. A fork with no change reproduces the original exactly (tested).
+3. [x] Paired randomness: each rollout plays both branches with the same random numbers
+4. [x] Rollouts give the outcome shift with a 95% interval, plus one typical alternate
+   timeline and win-probability curves for both timelines
+5. [x] Fork speed, measured: simulator 2.7x faster than v1 (64 ms per full match);
+   200 rollouts in 2 to 4 s on 8 workers. Featured moments of the 5 story matches are
+   precomputed at 500 rollouts and return instantly.
+6. [x] Season: 90 matches (`parallel_match/data/season.json`) with 5 planted stories:
+   STO 5-3 WES comeback (m003), tight late offside (m016), red card at 10' (m022),
+   RED 4-5 LAR winner at 90+4' (m039), borderline penalty in WES 2-1 COP (m052)
+7. [x] FastAPI service (`parallel_match/api.py`, docs in `docs/api.md`) plus `Dockerfile`
+   for Container Apps
+8. [x] Precedent check in plain code (`parallel_match/history.py`), the same query as SQL
+   for Fabric in `docs/history-query.md`, and `python3 -m parallel_match export` for the
+   Fabric tables
+
+**For Jiawei:** deploy the `Dockerfile` to Container Apps as the API. Load
+`out/season/*.csv` and `events.jsonl` into Fabric, and wrap the query in
+`docs/history-query.md` as the Historian's MCP tool. Agents read `/fork` output: use
+`description`, `moment.law`, `history` and `outcome_shift`, never invent numbers.
+
+**For Uwais:** the live API matches `fixtures/fork_m012.json`. Start the demo on m052
+(borderline penalty at 56').
 
 ### Jiawei: agents, Microsoft stack, deployment
 

@@ -31,6 +31,7 @@ class MatchState:
     tactics: list[dict]           # attack, defence, press, tempo, directness
     restart: tuple | None         # (kind, team, x, y) pending dead-ball restart
     finished: bool = False
+    force: tuple | None = None    # (step, key, value): the fork's one change, applied at that step
 
     def copy(self) -> "MatchState":
         return MatchState(
@@ -45,5 +46,5 @@ class MatchState:
             played=[list(x) for x in self.played],
             subs=list(self.subs),
             tactics=[dict(x) for x in self.tactics],
-            restart=self.restart, finished=self.finished,
+            restart=self.restart, finished=self.finished, force=self.force,
         )

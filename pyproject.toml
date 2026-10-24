@@ -12,5 +12,11 @@ parallel-match = "parallel_match.cli:main"
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+[project.optional-dependencies]
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+
 [tool.setuptools]
 packages = ["parallel_match"]
+
+[tool.setuptools.package-data]
+parallel_match = ["data/*.json", "data/forks/*/*.json"]

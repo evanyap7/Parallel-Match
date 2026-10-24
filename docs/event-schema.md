@@ -37,6 +37,10 @@ All data is synthetic: fictional clubs, fictional players, simulated matches.
 | `throw_in`, `goal_kick`, `corner`, `free_kick` | `law` |
 | `substitution` | `player` is the player coming on, `off` the player going off, `law` |
 | `half_time`, `full_time` | |
+| `lineup_change` | Alternate timelines only: `player` starts instead of `off` (unavailable player) |
+| `tactical_change` | Alternate timelines only: `set` holds the new tactic values |
+
+Alternate timelines returned by `/fork` use the id prefix `<match_id>x`, e.g. `m012x-0151`.
 
 ## Contestable moments
 

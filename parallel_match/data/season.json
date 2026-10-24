@@ -1,0 +1,1090 @@
+{
+ "world_seed": 2026,
+ "matches": [
+  {
+   "match_id": "m001",
+   "round": 1,
+   "home": "HAR",
+   "away": "COP",
+   "seed": 803591915344577024,
+   "story": null,
+   "score": [
+    3,
+    0
+   ]
+  },
+  {
+   "match_id": "m002",
+   "round": 1,
+   "home": "LAR",
+   "away": "NOR",
+   "seed": 1634380842621168128,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m003",
+   "round": 1,
+   "home": "STO",
+   "away": "WES",
+   "seed": 626108968079812096,
+   "story": "comeback",
+   "score": [
+    5,
+    3
+   ],
+   "summary": "STO 5-3 WES: comeback from two goals down"
+  },
+  {
+   "match_id": "m004",
+   "round": 1,
+   "home": "IRO",
+   "away": "KES",
+   "seed": 1281964216911508480,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m005",
+   "round": 1,
+   "home": "BRW",
+   "away": "RED",
+   "seed": 1918541900180491776,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m006",
+   "round": 2,
+   "home": "LAR",
+   "away": "HAR",
+   "seed": 1700605067470413824,
+   "story": null,
+   "score": [
+    1,
+    1
+   ]
+  },
+  {
+   "match_id": "m007",
+   "round": 2,
+   "home": "COP",
+   "away": "WES",
+   "seed": 1936104343484461056,
+   "story": null,
+   "score": [
+    1,
+    5
+   ]
+  },
+  {
+   "match_id": "m008",
+   "round": 2,
+   "home": "IRO",
+   "away": "NOR",
+   "seed": 621947672264261632,
+   "story": null,
+   "score": [
+    1,
+    0
+   ]
+  },
+  {
+   "match_id": "m009",
+   "round": 2,
+   "home": "STO",
+   "away": "RED",
+   "seed": 3185036187195763712,
+   "story": null,
+   "score": [
+    2,
+    0
+   ]
+  },
+  {
+   "match_id": "m010",
+   "round": 2,
+   "home": "BRW",
+   "away": "KES",
+   "seed": 3946472245757015040,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m011",
+   "round": 3,
+   "home": "HAR",
+   "away": "WES",
+   "seed": 3911930364576537088,
+   "story": null,
+   "score": [
+    1,
+    0
+   ]
+  },
+  {
+   "match_id": "m012",
+   "round": 3,
+   "home": "IRO",
+   "away": "LAR",
+   "seed": 4465619966079516672,
+   "story": null,
+   "score": [
+    1,
+    1
+   ]
+  },
+  {
+   "match_id": "m013",
+   "round": 3,
+   "home": "COP",
+   "away": "RED",
+   "seed": 1823266194757616128,
+   "story": null,
+   "score": [
+    1,
+    4
+   ]
+  },
+  {
+   "match_id": "m014",
+   "round": 3,
+   "home": "BRW",
+   "away": "NOR",
+   "seed": 2909670000695774720,
+   "story": null,
+   "score": [
+    1,
+    0
+   ]
+  },
+  {
+   "match_id": "m015",
+   "round": 3,
+   "home": "STO",
+   "away": "KES",
+   "seed": 1510730816267724288,
+   "story": null,
+   "score": [
+    3,
+    1
+   ]
+  },
+  {
+   "match_id": "m016",
+   "round": 4,
+   "home": "IRO",
+   "away": "HAR",
+   "seed": 1120450833599535616,
+   "story": "tight_offside",
+   "score": [
+    2,
+    1
+   ],
+   "summary": "Offside by centimetres late in a one-goal game"
+  },
+  {
+   "match_id": "m017",
+   "round": 4,
+   "home": "WES",
+   "away": "RED",
+   "seed": 521911601348830720,
+   "story": null,
+   "score": [
+    4,
+    4
+   ]
+  },
+  {
+   "match_id": "m018",
+   "round": 4,
+   "home": "BRW",
+   "away": "LAR",
+   "seed": 2460190895070543872,
+   "story": null,
+   "score": [
+    0,
+    1
+   ]
+  },
+  {
+   "match_id": "m019",
+   "round": 4,
+   "home": "COP",
+   "away": "KES",
+   "seed": 4496641612935176704,
+   "story": null,
+   "score": [
+    2,
+    0
+   ]
+  },
+  {
+   "match_id": "m020",
+   "round": 4,
+   "home": "STO",
+   "away": "NOR",
+   "seed": 1160172281666192384,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m021",
+   "round": 5,
+   "home": "HAR",
+   "away": "RED",
+   "seed": 952800207791810560,
+   "story": null,
+   "score": [
+    4,
+    0
+   ]
+  },
+  {
+   "match_id": "m022",
+   "round": 5,
+   "home": "BRW",
+   "away": "IRO",
+   "seed": 1149898018096274432,
+   "story": "early_red",
+   "score": [
+    1,
+    2
+   ],
+   "summary": "Red card for B7 (BRW) in the 10' minute"
+  },
+  {
+   "match_id": "m023",
+   "round": 5,
+   "home": "WES",
+   "away": "KES",
+   "seed": 260065224755097600,
+   "story": null,
+   "score": [
+    4,
+    1
+   ]
+  },
+  {
+   "match_id": "m024",
+   "round": 5,
+   "home": "STO",
+   "away": "LAR",
+   "seed": 2110008312134534144,
+   "story": null,
+   "score": [
+    2,
+    1
+   ]
+  },
+  {
+   "match_id": "m025",
+   "round": 5,
+   "home": "COP",
+   "away": "NOR",
+   "seed": 2732391922491150848,
+   "story": null,
+   "score": [
+    0,
+    1
+   ]
+  },
+  {
+   "match_id": "m026",
+   "round": 6,
+   "home": "BRW",
+   "away": "HAR",
+   "seed": 2536534970485557760,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m027",
+   "round": 6,
+   "home": "RED",
+   "away": "KES",
+   "seed": 1471882836289517056,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m028",
+   "round": 6,
+   "home": "STO",
+   "away": "IRO",
+   "seed": 515822589398685696,
+   "story": null,
+   "score": [
+    1,
+    1
+   ]
+  },
+  {
+   "match_id": "m029",
+   "round": 6,
+   "home": "WES",
+   "away": "NOR",
+   "seed": 3914430047667554816,
+   "story": null,
+   "score": [
+    0,
+    2
+   ]
+  },
+  {
+   "match_id": "m030",
+   "round": 6,
+   "home": "COP",
+   "away": "LAR",
+   "seed": 2588523811459096064,
+   "story": null,
+   "score": [
+    2,
+    3
+   ]
+  },
+  {
+   "match_id": "m031",
+   "round": 7,
+   "home": "HAR",
+   "away": "KES",
+   "seed": 2455760782952449536,
+   "story": null,
+   "score": [
+    2,
+    2
+   ]
+  },
+  {
+   "match_id": "m032",
+   "round": 7,
+   "home": "STO",
+   "away": "BRW",
+   "seed": 66138938135497216,
+   "story": null,
+   "score": [
+    2,
+    3
+   ]
+  },
+  {
+   "match_id": "m033",
+   "round": 7,
+   "home": "RED",
+   "away": "NOR",
+   "seed": 4177423358240919552,
+   "story": null,
+   "score": [
+    0,
+    2
+   ]
+  },
+  {
+   "match_id": "m034",
+   "round": 7,
+   "home": "COP",
+   "away": "IRO",
+   "seed": 3630018533357756416,
+   "story": null,
+   "score": [
+    2,
+    3
+   ]
+  },
+  {
+   "match_id": "m035",
+   "round": 7,
+   "home": "WES",
+   "away": "LAR",
+   "seed": 4408294108812642304,
+   "story": null,
+   "score": [
+    1,
+    6
+   ]
+  },
+  {
+   "match_id": "m036",
+   "round": 8,
+   "home": "STO",
+   "away": "HAR",
+   "seed": 4143135681944750080,
+   "story": null,
+   "score": [
+    0,
+    2
+   ]
+  },
+  {
+   "match_id": "m037",
+   "round": 8,
+   "home": "KES",
+   "away": "NOR",
+   "seed": 245795114770906112,
+   "story": null,
+   "score": [
+    1,
+    2
+   ]
+  },
+  {
+   "match_id": "m038",
+   "round": 8,
+   "home": "COP",
+   "away": "BRW",
+   "seed": 2480918895740401152,
+   "story": null,
+   "score": [
+    3,
+    2
+   ]
+  },
+  {
+   "match_id": "m039",
+   "round": 8,
+   "home": "RED",
+   "away": "LAR",
+   "seed": 53426824866473984,
+   "story": "late_winner",
+   "score": [
+    4,
+    5
+   ],
+   "summary": "Winner from L11 (LAR) in the 90+4' minute"
+  },
+  {
+   "match_id": "m040",
+   "round": 8,
+   "home": "WES",
+   "away": "IRO",
+   "seed": 2957070383840274944,
+   "story": null,
+   "score": [
+    0,
+    5
+   ]
+  },
+  {
+   "match_id": "m041",
+   "round": 9,
+   "home": "HAR",
+   "away": "NOR",
+   "seed": 4593177583230513664,
+   "story": null,
+   "score": [
+    0,
+    1
+   ]
+  },
+  {
+   "match_id": "m042",
+   "round": 9,
+   "home": "COP",
+   "away": "STO",
+   "seed": 1556046976101638144,
+   "story": null,
+   "score": [
+    1,
+    2
+   ]
+  },
+  {
+   "match_id": "m043",
+   "round": 9,
+   "home": "KES",
+   "away": "LAR",
+   "seed": 1236622202421252608,
+   "story": null,
+   "score": [
+    1,
+    1
+   ]
+  },
+  {
+   "match_id": "m044",
+   "round": 9,
+   "home": "WES",
+   "away": "BRW",
+   "seed": 911183030384564736,
+   "story": null,
+   "score": [
+    1,
+    4
+   ]
+  },
+  {
+   "match_id": "m045",
+   "round": 9,
+   "home": "RED",
+   "away": "IRO",
+   "seed": 2890095669519216640,
+   "story": null,
+   "score": [
+    2,
+    2
+   ]
+  },
+  {
+   "match_id": "m046",
+   "round": 10,
+   "home": "COP",
+   "away": "HAR",
+   "seed": 427972046051800576,
+   "story": null,
+   "score": [
+    0,
+    2
+   ]
+  },
+  {
+   "match_id": "m047",
+   "round": 10,
+   "home": "NOR",
+   "away": "LAR",
+   "seed": 3561021517797741568,
+   "story": null,
+   "score": [
+    1,
+    1
+   ]
+  },
+  {
+   "match_id": "m048",
+   "round": 10,
+   "home": "WES",
+   "away": "STO",
+   "seed": 8122457970121216,
+   "story": null,
+   "score": [
+    1,
+    2
+   ]
+  },
+  {
+   "match_id": "m049",
+   "round": 10,
+   "home": "KES",
+   "away": "IRO",
+   "seed": 4137746428153063936,
+   "story": null,
+   "score": [
+    1,
+    2
+   ]
+  },
+  {
+   "match_id": "m050",
+   "round": 10,
+   "home": "RED",
+   "away": "BRW",
+   "seed": 594379189359808000,
+   "story": null,
+   "score": [
+    1,
+    4
+   ]
+  },
+  {
+   "match_id": "m051",
+   "round": 11,
+   "home": "HAR",
+   "away": "LAR",
+   "seed": 737410193611982336,
+   "story": null,
+   "score": [
+    1,
+    0
+   ]
+  },
+  {
+   "match_id": "m052",
+   "round": 11,
+   "home": "WES",
+   "away": "COP",
+   "seed": 1360332076787431424,
+   "story": "penalty_drama",
+   "score": [
+    2,
+    1
+   ],
+   "summary": "Borderline penalty decision in a tight match"
+  },
+  {
+   "match_id": "m053",
+   "round": 11,
+   "home": "NOR",
+   "away": "IRO",
+   "seed": 1634375290084174848,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m054",
+   "round": 11,
+   "home": "RED",
+   "away": "STO",
+   "seed": 2702133871648153600,
+   "story": null,
+   "score": [
+    1,
+    2
+   ]
+  },
+  {
+   "match_id": "m055",
+   "round": 11,
+   "home": "KES",
+   "away": "BRW",
+   "seed": 3406978922415366656,
+   "story": null,
+   "score": [
+    1,
+    2
+   ]
+  },
+  {
+   "match_id": "m056",
+   "round": 12,
+   "home": "WES",
+   "away": "HAR",
+   "seed": 4533437634401654784,
+   "story": null,
+   "score": [
+    1,
+    6
+   ]
+  },
+  {
+   "match_id": "m057",
+   "round": 12,
+   "home": "LAR",
+   "away": "IRO",
+   "seed": 980919062677804544,
+   "story": null,
+   "score": [
+    5,
+    2
+   ]
+  },
+  {
+   "match_id": "m058",
+   "round": 12,
+   "home": "RED",
+   "away": "COP",
+   "seed": 576817836072083968,
+   "story": null,
+   "score": [
+    0,
+    2
+   ]
+  },
+  {
+   "match_id": "m059",
+   "round": 12,
+   "home": "NOR",
+   "away": "BRW",
+   "seed": 2745063392636313088,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m060",
+   "round": 12,
+   "home": "KES",
+   "away": "STO",
+   "seed": 3143522861858828288,
+   "story": null,
+   "score": [
+    0,
+    2
+   ]
+  },
+  {
+   "match_id": "m061",
+   "round": 13,
+   "home": "HAR",
+   "away": "IRO",
+   "seed": 1202296376445720064,
+   "story": null,
+   "score": [
+    0,
+    1
+   ]
+  },
+  {
+   "match_id": "m062",
+   "round": 13,
+   "home": "RED",
+   "away": "WES",
+   "seed": 4172175647332946432,
+   "story": null,
+   "score": [
+    5,
+    3
+   ]
+  },
+  {
+   "match_id": "m063",
+   "round": 13,
+   "home": "LAR",
+   "away": "BRW",
+   "seed": 2913527465871363072,
+   "story": null,
+   "score": [
+    2,
+    0
+   ]
+  },
+  {
+   "match_id": "m064",
+   "round": 13,
+   "home": "KES",
+   "away": "COP",
+   "seed": 483431810255653888,
+   "story": null,
+   "score": [
+    0,
+    2
+   ]
+  },
+  {
+   "match_id": "m065",
+   "round": 13,
+   "home": "NOR",
+   "away": "STO",
+   "seed": 2510821349589940736,
+   "story": null,
+   "score": [
+    0,
+    1
+   ]
+  },
+  {
+   "match_id": "m066",
+   "round": 14,
+   "home": "RED",
+   "away": "HAR",
+   "seed": 3394066528754478080,
+   "story": null,
+   "score": [
+    0,
+    5
+   ]
+  },
+  {
+   "match_id": "m067",
+   "round": 14,
+   "home": "IRO",
+   "away": "BRW",
+   "seed": 1780915965637891584,
+   "story": null,
+   "score": [
+    2,
+    2
+   ]
+  },
+  {
+   "match_id": "m068",
+   "round": 14,
+   "home": "KES",
+   "away": "WES",
+   "seed": 3599828049476848128,
+   "story": null,
+   "score": [
+    2,
+    0
+   ]
+  },
+  {
+   "match_id": "m069",
+   "round": 14,
+   "home": "LAR",
+   "away": "STO",
+   "seed": 616511179270104576,
+   "story": null,
+   "score": [
+    0,
+    3
+   ]
+  },
+  {
+   "match_id": "m070",
+   "round": 14,
+   "home": "NOR",
+   "away": "COP",
+   "seed": 2190699571253943296,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m071",
+   "round": 15,
+   "home": "HAR",
+   "away": "BRW",
+   "seed": 2977033138783187968,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m072",
+   "round": 15,
+   "home": "KES",
+   "away": "RED",
+   "seed": 2253879143164888064,
+   "story": null,
+   "score": [
+    0,
+    0
+   ]
+  },
+  {
+   "match_id": "m073",
+   "round": 15,
+   "home": "IRO",
+   "away": "STO",
+   "seed": 2675754770894565376,
+   "story": null,
+   "score": [
+    2,
+    2
+   ]
+  },
+  {
+   "match_id": "m074",
+   "round": 15,
+   "home": "NOR",
+   "away": "WES",
+   "seed": 2082162166482800640,
+   "story": null,
+   "score": [
+    2,
+    2
+   ]
+  },
+  {
+   "match_id": "m075",
+   "round": 15,
+   "home": "LAR",
+   "away": "COP",
+   "seed": 804452841424662528,
+   "story": null,
+   "score": [
+    4,
+    1
+   ]
+  },
+  {
+   "match_id": "m076",
+   "round": 16,
+   "home": "KES",
+   "away": "HAR",
+   "seed": 2855583118568474112,
+   "story": null,
+   "score": [
+    0,
+    3
+   ]
+  },
+  {
+   "match_id": "m077",
+   "round": 16,
+   "home": "BRW",
+   "away": "STO",
+   "seed": 248397971541665280,
+   "story": null,
+   "score": [
+    3,
+    2
+   ]
+  },
+  {
+   "match_id": "m078",
+   "round": 16,
+   "home": "NOR",
+   "away": "RED",
+   "seed": 2205355091261350912,
+   "story": null,
+   "score": [
+    2,
+    0
+   ]
+  },
+  {
+   "match_id": "m079",
+   "round": 16,
+   "home": "IRO",
+   "away": "COP",
+   "seed": 1076281804763863040,
+   "story": null,
+   "score": [
+    3,
+    1
+   ]
+  },
+  {
+   "match_id": "m080",
+   "round": 16,
+   "home": "LAR",
+   "away": "WES",
+   "seed": 964769324933401600,
+   "story": null,
+   "score": [
+    2,
+    1
+   ]
+  },
+  {
+   "match_id": "m081",
+   "round": 17,
+   "home": "HAR",
+   "away": "STO",
+   "seed": 4257031506679242752,
+   "story": null,
+   "score": [
+    3,
+    1
+   ]
+  },
+  {
+   "match_id": "m082",
+   "round": 17,
+   "home": "NOR",
+   "away": "KES",
+   "seed": 2461092154771552256,
+   "story": null,
+   "score": [
+    2,
+    1
+   ]
+  },
+  {
+   "match_id": "m083",
+   "round": 17,
+   "home": "BRW",
+   "away": "COP",
+   "seed": 2690118545187718144,
+   "story": null,
+   "score": [
+    4,
+    1
+   ]
+  },
+  {
+   "match_id": "m084",
+   "round": 17,
+   "home": "LAR",
+   "away": "RED",
+   "seed": 4015152760188594688,
+   "story": null,
+   "score": [
+    2,
+    1
+   ]
+  },
+  {
+   "match_id": "m085",
+   "round": 17,
+   "home": "IRO",
+   "away": "WES",
+   "seed": 172039098530288640,
+   "story": null,
+   "score": [
+    2,
+    2
+   ]
+  },
+  {
+   "match_id": "m086",
+   "round": 18,
+   "home": "NOR",
+   "away": "HAR",
+   "seed": 3323360900783363072,
+   "story": null,
+   "score": [
+    1,
+    0
+   ]
+  },
+  {
+   "match_id": "m087",
+   "round": 18,
+   "home": "STO",
+   "away": "COP",
+   "seed": 1489550509080042496,
+   "story": null,
+   "score": [
+    2,
+    0
+   ]
+  },
+  {
+   "match_id": "m088",
+   "round": 18,
+   "home": "LAR",
+   "away": "KES",
+   "seed": 3899592827692937216,
+   "story": null,
+   "score": [
+    2,
+    0
+   ]
+  },
+  {
+   "match_id": "m089",
+   "round": 18,
+   "home": "BRW",
+   "away": "WES",
+   "seed": 2597090303824181760,
+   "story": null,
+   "score": [
+    9,
+    1
+   ]
+  },
+  {
+   "match_id": "m090",
+   "round": 18,
+   "home": "IRO",
+   "away": "RED",
+   "seed": 1699732139661136896,
+   "story": null,
+   "score": [
+    2,
+    1
+   ]
+  }
+ ]
+}
