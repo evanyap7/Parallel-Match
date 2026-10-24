@@ -5,8 +5,8 @@
 # and run with AGENTS_UPSTREAM=https://pm-agents.<env-domain>.
 # Vite inlines VITE_* at build time, so a new API URL means a rebuild
 # (deploy/deploy.sh web does this with the live URLs). The agents API is
-# reached same-origin at /agents, proxied by nginx to AGENTS_UPSTREAM, so it
-# needs no CORS; set VITE_AGENTS_BASE_URL only to bypass the proxy.
+# called directly at VITE_AGENTS_BASE_URL (deploy.sh sets it; CORS is open).
+# Without it the app falls back to /agents, proxied by nginx to AGENTS_UPSTREAM.
 FROM node:22-alpine AS build
 WORKDIR /src
 COPY fixtures ./fixtures
