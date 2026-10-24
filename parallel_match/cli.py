@@ -44,8 +44,11 @@ def _cmd_season(args):
     if args.winprob:
         winprob.save_table(winprob.build_table(1600, workers=args.workers))
         print(f"wrote {winprob.TABLE_PATH}")
+    from . import history
     s = season.build_season(workers=args.workers)
     print(f"wrote {season.save(s)}")
+    history.season_rows.cache_clear()
+    print(f"wrote {history.save_season_rows(history.build_season_rows())}")
     for m in s["matches"]:
         if m["story"]:
             print(f"  {m['match_id']}  {m['home']} {m['score'][0]}-{m['score'][1]} {m['away']}  {m['summary']}")

@@ -24,6 +24,7 @@ docker run -p 8000:8000 parallel-match-api
 | GET | `/standings` | League table |
 | GET | `/match/{match_id}` | Full match: `{match_id, seed, home, away, score, story, events: [...]}` |
 | GET | `/moments/{match_id}` | Tappable moments, each an event plus `changes: [...]` it supports |
+| GET | `/history/{match_id}/{event_id}` | Precedent for one contestable call (same numbers as the fork's `history` block); 404 if not a contestable call |
 | POST | `/fork` | The what-if result (below) |
 
 Story matches (good for the demo) have a non-null `story`: `comeback`, `early_red`,
