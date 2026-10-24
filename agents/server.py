@@ -94,6 +94,7 @@ def health():
     configured = os.environ.get("PM_AGENT_BACKEND", "template")
     return {
         "status": "ok",
+        "release": os.environ.get("PM_RELEASE"),
         "backend_configured": configured,
         "provider": provider.name,
         "provider_error": provider_error(),
