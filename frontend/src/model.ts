@@ -138,3 +138,109 @@ export function alternateEvents(
   const prefix = match.events.filter((e) => e.step < result.divergence.step);
   return [...prefix, ...result.alternate.timeline];
 }
+
+// ---- view helpers ---------------------------------------------------------
+
+/** How much a fan is likely to care about a moment (higher first). */
+export function momentPriority(e: MatchEvent): number {
+  if (e.type === "goal") return 10;
+  if (e.type === "card" && e.color === "red") return 9;
+  if (e.call === "penalty") return 9;
+  if (e.type === "offside" || e.call === "onside")
+    return 6 - 5 * Math.abs(e.margin ?? e.offside_margin ?? 1);
+  if (e.contestable) return 4 - 10 * Math.abs(e.margin ?? 0.3);
+  if (e.type === "shot") return 3;
+  return 1;
+}
+
+/** The handful of moments the fan view shows, in match order. */
+export function keyMoments(
+  moments: MatchEvent[],
+  limit = 8,
+  keep?: string,
+): MatchEvent[] {
+  const ranked = [...moments]
+    .sort((a, b) => momentPriority(b) - momentPriority(a))
+    .slice(0, limit);
+  const chosen =
+    !keep || ranked.some((e) => e.id === keep)
+      ? ranked
+      : [
+          ...ranked.slice(0, limit - 1),
+          ...moments.filter((e) => e.id === keep),
+        ];
+  return chosen.sort((a, b) => a.t - b.t);
+}
+
+/** A short plain-language name for a moment, for fans. */
+export function momentHeadline(e: MatchEvent): string {
+  const who = e.player ? `${e.player} (${e.team})` : (e.team ?? "");
+  if (e.type === "goal") return `Goal for ${clubName(e.team ?? "")}`;
+  if (e.type === "card")
+    return `${e.color === "red" ? "Red" : "Yellow"} card for ${who}`;
+  if (e.call === "penalty")
+    return `Penalty given against ${clubName(e.team ?? "")}`;
+  if (e.type === "foul") return `Foul given against ${who}`;
+  if (e.call === "no_foul") return `Play on after a challenge by ${who}`;
+  if (e.type === "offside") return `Offside flag against ${who}`;
+  if (e.call === "onside") return `${who} judged onside`;
+  if (e.type === "shot") return `Big chance for ${who}`;
+  if (e.type === "substitution") return `${e.player} comes on for ${e.team}`;
+  return readable(e.type);
+}
+
+/** Short tag for a moment marker. */
+export function momentTag(e: MatchEvent): string {
+  if (e.type === "goal") return "Goal";
+  if (e.type === "card") return e.color === "red" ? "Red" : "Card";
+  if (e.call === "penalty") return "Pen";
+  if (e.type === "offside" || e.call === "onside") return "Offside";
+  if (e.type === "shot") return "Chance";
+  if (e.type === "substitution") return "Sub";
+  return "Foul";
+}
+
+/** The fan's question for a change, in their words. */
+export function whatIfQuestion(change: Change, event?: MatchEvent): string {
+  switch (change.type) {
+    case "flip_call":
+      if (event?.call === "penalty") return "What if it wasn’t a penalty?";
+      if (event?.call === "offside") return "What if it was onside?";
+      if (event?.call === "onside") return "What if offside was flagged?";
+      if (event?.call === "no_foul") return "What if the foul was given?";
+      return "What if there was no foul?";
+    case "not_sent_off":
+      return "What if the player stayed on?";
+    case "shot_outcome":
+      return change.outcome === "goal"
+        ? "What if it went in?"
+        : "What if it was saved?";
+    case "card":
+      return change.card
+        ? `What if it was a ${change.card} card?`
+        : "What if there was no card?";
+    case "substitution":
+      return "What if you made the change?";
+    case "tactics":
+      return "What if they pressed harder?";
+  }
+}
+
+/** Win chance for one side before and after the change, from the paired rollouts. */
+export function winChance(result: ForkResult, side: "home" | "away") {
+  const before = result.original.outcome?.[side];
+  const after = result.alternate.outcome?.[side];
+  return {
+    before: before ?? null,
+    after:
+      after ??
+      (before !== undefined ? before + result.outcome_shift[side] : null),
+  };
+}
+
+/** Events of a timeline from a step onwards, for the divergence log. */
+export function eventsFrom(events: MatchEvent[], step: number, limit: number) {
+  return events
+    .filter((e) => e.step >= step && e.type !== "pass" && e.type !== "dribble")
+    .slice(0, limit);
+}

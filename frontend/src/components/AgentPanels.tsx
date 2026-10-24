@@ -60,9 +60,11 @@ export function AgentStatus() {
 export function AgentLaw({
   matchId,
   event,
+  open = false,
 }: {
   matchId: string;
   event: MatchEvent;
+  open?: boolean;
 }) {
   const state = useAgent((signal) => explain(matchId, event.id, signal));
   return (
@@ -70,8 +72,8 @@ export function AgentLaw({
       <h4>Law Explainer</h4>
       {state.data ? (
         <>
-          <details className="law-details">
-            <summary>Read the full explanation</summary>
+          <details className="law-details" open={open}>
+            <summary>Full explanation</summary>
             <p>{state.data.text}</p>
           </details>
           <Source data={state.data} />
@@ -82,12 +84,21 @@ export function AgentLaw({
     </section>
   );
 }
-export function AgentNarrative({ result }: { result: ForkResult }) {
+export function AgentNarrative({
+  result,
+  variant = "analyst",
+}: {
+  result: ForkResult;
+  variant?: "fan" | "analyst";
+}) {
   const state = useAgent((signal) => narrate(result, signal));
   return (
-    <section className="agent-narrative card" aria-label="Narrator commentary">
+    <section
+      className={`agent-narrative ${variant}`}
+      aria-label="Narrator commentary"
+    >
       <div className="section-title">
-        <h3>Narrator · full-match stories</h3>
+        <h3>{variant === "fan" ? "Commentary" : "Narrator"}</h3>
         {state.data && <Source data={state.data} />}
       </div>
       {state.data ? (
@@ -95,9 +106,7 @@ export function AgentNarrative({ result }: { result: ForkResult }) {
           {["real", "alternate"].map((side) => (
             <div key={side}>
               <span className="timeline-name">
-                {side === "real"
-                  ? "Recorded timeline"
-                  : "Alternate, model world"}
+                {side === "real" ? "What happened" : "What could have happened"}
               </span>
               <p>
                 {
@@ -111,10 +120,12 @@ export function AgentNarrative({ result }: { result: ForkResult }) {
       ) : (
         <AgentState {...state} />
       )}
-      <p className="small muted">
-        Full-time summaries reveal both outcomes. Replay positions continue to
-        follow the shared clock.
-      </p>
+      {variant === "analyst" && (
+        <p className="small muted">
+          Full-time summaries reveal both outcomes. Replay positions follow the
+          shared clock.
+        </p>
+      )}
     </section>
   );
 }

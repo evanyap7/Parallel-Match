@@ -14,7 +14,7 @@ export function ProbabilityChart({
     ...a.map((p) => p.minute),
     ...b.map((p) => p.minute),
   );
-  const x = (min: number) => 46 + (min / end) * 434;
+  const x = (min: number) => 46 + (min / end) * 574;
   const y = (p: number) => 226 - p * 190;
   const path = (values: typeof a) =>
     values
@@ -40,7 +40,7 @@ export function ProbabilityChart({
         <span className="chart-key">Full scenario comparison</span>
       </div>
       <svg
-        viewBox="0 0 500 270"
+        viewBox="0 0 640 270"
         role="img"
         aria-label={`${home} win probability comparison. Original ink line ends at ${percent(a.at(-1)?.home ?? 0)}; alternate dashed blue line, after the decision at minute ${result.divergence.min}, ends at ${percent(b.at(-1)?.home ?? 0)}. ${result.placeholder ? "All curve values are fixture placeholders." : "Simulation estimates, not real-world predictions."}`}
       >
@@ -48,7 +48,7 @@ export function ProbabilityChart({
           <g key={v}>
             <line
               x1="46"
-              x2="480"
+              x2="620"
               y1={y(v)}
               y2={y(v)}
               stroke="var(--rule-strong)"
