@@ -69,17 +69,20 @@ az account set --subscription "$SUBSCRIPTION_ID"
 az extension add --name containerapp --upgrade --only-show-errors > /dev/null 2>&1 || true
 
 register() {
-  az provider show -n "$1" --query registrationState -o tsv 2>/dev/null | grep -q Registered || {
+  # Exact match: "NotRegistered" and "Registering" must not count as done.
+  local state
+  state="$(az provider show -n "$1" --query registrationState -o tsv 2>/dev/null || true)"
+  if [[ "$state" != "Registered" ]]; then
     log "registering $1 (once, can take a few minutes)"
-    az provider register -n "$1" --wait
-  }
+    az provider register -n "$1" --wait > /dev/null
+  fi
 }
 
 # One-time: resource group, Basic registry, Container Apps environment.
 # Logs go to the console stream only (no Log Analytics workspace to pay for);
 # read them with: az containerapp logs show -n <app> -g <rg> --follow
 setup() {
-  for ns in Microsoft.App Microsoft.ContainerRegistry Microsoft.CognitiveServices; do register "$ns"; done
+  for ns in Microsoft.App Microsoft.ContainerRegistry Microsoft.CognitiveServices Microsoft.ManagedIdentity; do register "$ns"; done
   az group show -n "$RESOURCE_GROUP" > /dev/null 2>&1 || {
     log "creating resource group $RESOURCE_GROUP in $LOCATION"
     az group create -n "$RESOURCE_GROUP" -l "$LOCATION" > /dev/null
