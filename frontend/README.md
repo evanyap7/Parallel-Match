@@ -54,7 +54,7 @@ API errors never silently switch to fixture results. Requests time out after 60 
 
 Two ball-event pitch replays share playback controls; there is no fabricated player tracking. The chart shows complete scenario probability paths. Club selection changes both the outcome shift and its interval, plus the data summary. Fan/analyst detail exposes additional event evidence.
 
-The frontend creates a deterministic summary from returned values and labels it **Data summary from paired rollouts**. If an agent later supplies `verdict`, it is displayed as **Agent narrative**. This integration does not implement Jiawei's Foundry agents, multilingual narration or Fabric retrieval. The backend's current season precedent is used directly. Kick-off player-unavailability is supported by the backend but has no frontend control yet.
+The frontend creates a deterministic summary from returned values and labels it **Data summary from paired rollouts**. If an agent later supplies `verdict`, it is displayed as **Agent narrative**. The agent service panels are now connected as described below; Foundry deployment, multilingual narration and Fabric retrieval remain outside this frontend change. The backend's current season precedent is used directly. Kick-off player-unavailability is supported by the backend but has no frontend control yet.
 
 ## Checks
 
@@ -64,3 +64,11 @@ npm run build
 ```
 
 Tests include all 60 backend cached fork responses, replay step boundaries, absent precedent, stale/wrong request rejection, substitution eligibility and HTTP errors. See `../docs/uwais/verification.md` for browser integration evidence.
+
+## Agent integration
+
+Run `uvicorn agents.server:app --port 8001` in a third terminal. The Vite development server proxies `/agents` to that local service. Optional `VITE_AGENTS_PROXY_TARGET` changes the development target; `VITE_AGENTS_BASE_URL` changes the browser-facing agents base (default `/agents`). Restart Vite after changing configuration.
+
+The viewer calls `/explain` on moment selection, `/narrate` after a fork and `/precedents` for an officiating comparison. Free text calls `/parse` before `/fork`. Outputs are validated against the request, requests abort on changed selections, and errors have retry states. The header reports the service's template or Foundry provider mode.
+
+For production, supply a same-origin `/agents` proxy or an HTTPS service URL with appropriate CORS support. See `.env.example` and `../docs/uwais/remaining-status.md` for the compatibility table, service handoffs and deployment checks. The earlier paragraph describing these panels as unimplemented is superseded by this integration section.

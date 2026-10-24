@@ -14,3 +14,7 @@ Run the API and viewer using `frontend/README.md`; confirm the **Live engine** b
 | 95–110 s | Goal reversal or pressing control; return to split replay | “One match, several possible realities, with the assumptions and uncertainty visible.” |
 
 Uncached forks take several seconds and may be slower on the demo machine. Warm up the API and verify timings before recording. Do not describe the deterministic summary as an AI agent; add Jiawei's actual Foundry narration and historian evidence to the final submission recording when available. Do not claim fabricated fan interviews as validation.
+
+## Current recording
+
+`agent-demo.mp4` is the new 80-second captioned local walkthrough. It opens on the m052 penalty and shows the two timeline narratives, replay, simulation evidence, Historian, free-text request and Law Explainer. It explicitly labels template mode and the remaining cloud/history handoffs. The earlier `demo-preview.mp4` remains an archived placeholder preview. Final hosted-site recording/submission still requires actual deployment URLs.

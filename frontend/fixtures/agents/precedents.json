@@ -1,0 +1,192 @@
+{
+  "event_id": "m052-0715",
+  "stats": {
+    "n": 8,
+    "n_same_call": 0,
+    "n_other_call": 8,
+    "share_other_call": 1.0,
+    "n_other_call_scored_within_15m": 1,
+    "n_same_call_scored_within_15m": 0,
+    "avg_goals_by_team_next_15m_when_other_call": 0.25,
+    "avg_goals_by_team_next_15m_when_same_call": null
+  },
+  "comparables": [
+    {
+      "match_id": "m003",
+      "event_id": "m003-0758",
+      "min": "57",
+      "type": "dribble",
+      "team": "HAR",
+      "opponent": "NOR",
+      "player": "H3",
+      "call": "no_foul",
+      "contact": 0.54,
+      "margin": 0.046,
+      "zone": "defending third",
+      "score_at": [
+        0,
+        0
+      ],
+      "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+      "closeness": 1.242,
+      "same_call": false,
+      "goals_by_team_next_15m": 0
+    },
+    {
+      "match_id": "m008",
+      "event_id": "m008-0566",
+      "min": "45",
+      "type": "foul",
+      "team": "HAR",
+      "opponent": "NOR",
+      "player": "H7",
+      "call": "free_kick",
+      "contact": 0.536,
+      "margin": 0.028,
+      "zone": "defending third",
+      "score_at": [
+        0,
+        1
+      ],
+      "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+      "closeness": 1.226,
+      "same_call": false,
+      "goals_by_team_next_15m": 0
+    },
+    {
+      "match_id": "m006",
+      "event_id": "m006-0670",
+      "min": "49",
+      "type": "tackle",
+      "team": "NOR",
+      "opponent": "HAR",
+      "player": "N4",
+      "call": "no_foul",
+      "contact": 0.553,
+      "margin": 0.037,
+      "zone": "defending third",
+      "score_at": [
+        0,
+        0
+      ],
+      "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+      "closeness": 1.206,
+      "same_call": false,
+      "goals_by_team_next_15m": 0
+    }
+  ],
+  "text": "Across the recorded season, 8 moments match this one: same decision family, measured contact within 0.2, with pitch zone and clock as tie-breakers. In 8 of them the call went the other way (100%), and in 1 of those 8 cases the team that benefited scored inside the next 15 minutes. Closest precedent: m003 at 57', dribble for HAR against NOR - play was allowed to continue, with no foul called (no goal by that team inside 15 minutes).",
+  "facts": {
+    "query": {
+      "match_id": "m052",
+      "event_id": "m052-0715",
+      "min": "56",
+      "type": "foul",
+      "team": "COP",
+      "opponent": "WES",
+      "player": "C3",
+      "call": "penalty",
+      "contact": 0.542,
+      "margin": -0.002,
+      "zone": "defending third",
+      "score_at": [
+        0,
+        1
+      ],
+      "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+      "team_name": "COP",
+      "opponent_name": "WES"
+    },
+    "stats": {
+      "n": 8,
+      "n_same_call": 0,
+      "n_other_call": 8,
+      "share_other_call": 1.0,
+      "n_other_call_scored_within_15m": 1,
+      "n_same_call_scored_within_15m": 0,
+      "avg_goals_by_team_next_15m_when_other_call": 0.25,
+      "avg_goals_by_team_next_15m_when_same_call": null
+    },
+    "criteria": {
+      "family": "contact",
+      "contact_tolerance": 0.2,
+      "margin_tolerance_m": 0.4,
+      "goal_window_min": 15
+    },
+    "top": [
+      {
+        "match_id": "m003",
+        "event_id": "m003-0758",
+        "min": "57",
+        "type": "dribble",
+        "team": "HAR",
+        "opponent": "NOR",
+        "player": "H3",
+        "call": "no_foul",
+        "contact": 0.54,
+        "margin": 0.046,
+        "zone": "defending third",
+        "score_at": [
+          0,
+          0
+        ],
+        "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+        "closeness": 1.242,
+        "same_call": false,
+        "goals_by_team_next_15m": 0
+      },
+      {
+        "match_id": "m008",
+        "event_id": "m008-0566",
+        "min": "45",
+        "type": "foul",
+        "team": "HAR",
+        "opponent": "NOR",
+        "player": "H7",
+        "call": "free_kick",
+        "contact": 0.536,
+        "margin": 0.028,
+        "zone": "defending third",
+        "score_at": [
+          0,
+          1
+        ],
+        "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+        "closeness": 1.226,
+        "same_call": false,
+        "goals_by_team_next_15m": 0
+      },
+      {
+        "match_id": "m006",
+        "event_id": "m006-0670",
+        "min": "49",
+        "type": "tackle",
+        "team": "NOR",
+        "opponent": "HAR",
+        "player": "N4",
+        "call": "no_foul",
+        "contact": 0.553,
+        "margin": 0.037,
+        "zone": "defending third",
+        "score_at": [
+          0,
+          0
+        ],
+        "law": "Law 12: Fouls and Misconduct (direct free kick offences)",
+        "closeness": 1.206,
+        "same_call": false,
+        "goals_by_team_next_15m": 0
+      }
+    ],
+    "query_call_phrase": "a penalty kick was awarded",
+    "beneficiary": "WES",
+    "n": 8,
+    "n_other": 8,
+    "n_same": 0,
+    "share_other_pct": 100,
+    "n_other_scored": 1,
+    "avg_other": 0.25,
+    "_truth": "{\"comparables\": [{\"call\": \"no_foul\", \"closeness\": 1.242, \"contact\": 0.54, \"event_id\": \"m003-0758\", \"goals_by_team_next_15m\": 0, \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": 0.046, \"match_id\": \"m003\", \"min\": \"57\", \"opponent\": \"NOR\", \"player\": \"H3\", \"same_call\": false, \"score_at\": [0, 0], \"team\": \"HAR\", \"type\": \"dribble\", \"zone\": \"defending third\"}, {\"call\": \"free_kick\", \"closeness\": 1.226, \"contact\": 0.536, \"event_id\": \"m008-0566\", \"goals_by_team_next_15m\": 0, \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": 0.028, \"match_id\": \"m008\", \"min\": \"45\", \"opponent\": \"NOR\", \"player\": \"H7\", \"same_call\": false, \"score_at\": [0, 1], \"team\": \"HAR\", \"type\": \"foul\", \"zone\": \"defending third\"}, {\"call\": \"no_foul\", \"closeness\": 1.206, \"contact\": 0.553, \"event_id\": \"m006-0670\", \"goals_by_team_next_15m\": 0, \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": 0.037, \"match_id\": \"m006\", \"min\": \"49\", \"opponent\": \"HAR\", \"player\": \"N4\", \"same_call\": false, \"score_at\": [0, 0], \"team\": \"NOR\", \"type\": \"tackle\", \"zone\": \"defending third\"}, {\"call\": \"free_kick\", \"closeness\": 1.194, \"contact\": 0.528, \"event_id\": \"m007-0655\", \"goals_by_team_next_15m\": 0, \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": 0.029, \"match_id\": \"m007\", \"min\": \"48\", \"opponent\": \"HAR\", \"player\": \"N6\", \"same_call\": false, \"score_at\": [2, 0], \"team\": \"NOR\", \"type\": \"foul\", \"zone\": \"defending third\"}, {\"call\": \"no_foul\", \"closeness\": 1.166, \"contact\": 0.521, \"event_id\": \"m004-0656\", \"goals_by_team_next_15m\": 0, \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": -0.016, \"match_id\": \"m004\", \"min\": \"47\", \"opponent\": \"HAR\", \"player\": \"N3\", \"same_call\": false, \"score_at\": [0, 0], \"team\": \"NOR\", \"type\": \"dribble\", \"zone\": \"defending third\"}, {\"call\": \"free_kick\", \"closeness\": 1.146, \"contact\": 0.543, \"event_id\": \"m008-0774\", \"goals_by_team_next_15m\": 0, \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": 0.035, \"match_id\": \"m008\", \"min\": \"57\", \"opponent\": \"HAR\", \"player\": \"N2\", \"same_call\": false, \"score_at\": [0, 1], \"team\": \"NOR\", \"type\": \"foul\", \"zone\": \"middle third\"}, {\"call\": \"no_foul\", \"closeness\": 1.146, \"contact\": 0.541, \"event_id\": \"m009-0790\", \"goals_by_team_next_15m\": 0, \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": -0.019, \"match_id\": \"m009\", \"min\": \"59\", \"opponent\": \"HAR\", \"player\": \"N9\", \"same_call\": false, \"score_at\": [0, 1], \"team\": \"NOR\", \"type\": \"tackle\", \"zone\": \"middle third\"}, {\"call\": \"no_foul\", \"closeness\": 1.146, \"contact\": 0.541, \"event_id\": \"m005-1021\", \"goals_by_team_next_15m\": 2, \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": -0.02, \"match_id\": \"m005\", \"min\": \"78\", \"opponent\": \"NOR\", \"player\": \"H16\", \"same_call\": false, \"score_at\": [1, 0], \"team\": \"HAR\", \"type\": \"dribble\", \"zone\": \"defending third\"}], \"criteria\": {\"contact_tolerance\": 0.2, \"family\": \"contact\", \"goal_window_min\": 15, \"margin_tolerance_m\": 0.4}, \"query\": {\"call\": \"penalty\", \"contact\": 0.542, \"event_id\": \"m052-0715\", \"law\": \"Law 12: Fouls and Misconduct (direct free kick offences)\", \"margin\": -0.002, \"match_id\": \"m052\", \"min\": \"56\", \"opponent\": \"WES\", \"player\": \"C3\", \"score_at\": [0, 1], \"team\": \"COP\", \"type\": \"foul\", \"zone\": \"defending third\"}, \"stats\": {\"avg_goals_by_team_next_15m_when_other_call\": 0.25, \"avg_goals_by_team_next_15m_when_same_call\": null, \"n\": 8, \"n_other_call\": 8, \"n_other_call_scored_within_15m\": 1, \"n_same_call\": 0, \"n_same_call_scored_within_15m\": 0, \"share_other_call\": 1.0}}"
+  },
+  "fell_back": false
+}
