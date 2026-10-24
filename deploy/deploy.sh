@@ -251,10 +251,13 @@ deploy_web() {
   api="$(fqdn pm-api)"; agents="$(fqdn pm-agents)"
   [[ -n "$api" ]] || { echo "pm-api is not deployed yet: run ./deploy/deploy.sh api" >&2; exit 1; }
   [[ -n "$agents" ]] || log "pm-agents not deployed yet; /agents will fail until it is (then rerun web)"
-  # The API URL is baked into the bundle; the agents are proxied at /agents
-  # by nginx, so only AGENTS_UPSTREAM changes when the agents app moves.
+  # Both URLs are baked into the bundle, so the browser calls the agents
+  # directly (CORS is open on the agents API). The nginx /agents proxy stays
+  # as a fallback for builds without VITE_AGENTS_BASE_URL. Calling directly
+  # skips a hop that stalled agent panels for ~60 s on the live site.
   build "$WEB_IMAGE" deploy/frontend/Dockerfile \
-    --build-arg "VITE_API_BASE_URL=https://$api" || return 1
+    --build-arg "VITE_API_BASE_URL=https://$api" \
+    --build-arg "VITE_AGENTS_BASE_URL=${agents:+https://$agents}" || return 1
   if [[ -n "$agents" ]]; then
     upsert pm-web "$WEB_IMAGE" 80 "${SIZE_WEB[@]}" AGENTS_UPSTREAM="https://$agents"
   else

@@ -21,24 +21,75 @@ Run:  PM_AGENT_BACKEND=template uvicorn agents.server:app --port 8001
 
 from __future__ import annotations
 
+import glob
+import json
+import logging
 import os
+import threading
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import history_client, historian, intervention, law_explainer, narrator
-from .provider import get_provider, provider_error
+from . import cache, history_client, historian, intervention, law_explainer, narrator
+from .facts import fork_facts
+from .provider import TemplateProvider, get_provider, provider_error
 from mcp_history import HistoryStore, default_store
 from mcp_history.precedent import compare_with_simulation, source
+
+
+log = logging.getLogger("agents")
+FIXTURES_DIR = os.environ.get("PM_FIXTURES_DIR", os.path.join(os.path.dirname(__file__), "..", "fixtures"))
 
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     default_store()   # replay the season before taking traffic
     get_provider()    # build (or fall back from) the model provider once
+    if os.environ.get("PM_WARM", "1") == "1":
+        threading.Thread(target=_warm, name="warm-cache", daemon=True).start()
     yield
+
+
+def _warm() -> None:
+    """Answer the featured moments once in the background, so the first judge
+    to tap them gets a cached answer. Failures are fine: nothing is cached."""
+    time.sleep(float(os.environ.get("PM_WARM_DELAY_S", "20")))  # let MCP come up
+    for path in sorted(glob.glob(os.path.join(FIXTURES_DIR, "fork_*.json"))):
+        try:
+            with open(path) as fh:
+                fork = json.load(fh)
+            mid, eid = fork.get("match_id"), fork.get("event_id")
+            narrate(NarrateBody(fork_response=fork, match_id=mid))
+            explain(EventBody(match_id=mid, event_id=eid))
+            precedents(PrecedentsBody(match_id=mid, event_id=eid, fork_response=fork))
+            precedents(PrecedentsBody(match_id=mid, event_id=eid))
+        except Exception as exc:  # pragma: no cover - best effort
+            log.warning("warm-up skipped %s: %s", path, exc)
+
+
+def _model_backend() -> bool:
+    return not isinstance(get_provider(), TemplateProvider)
+
+
+def _cacheable(result: dict) -> bool:
+    if result.get("fell_back") and _model_backend():
+        return False   # model failed: retry once it is back
+    if result.get("source") == "in-process" and history_client.MCP_URL:
+        return False   # MCP was skipped: retry through MCP
+    return True
+
+
+def _cached(k: str, compute) -> dict:
+    hit = cache.get(k)
+    if hit is not None:
+        return {**hit, "cached": True}
+    result = compute()
+    if _cacheable(result):
+        cache.put(k, result)
+    return {**result, "cached": False}
 
 
 app = FastAPI(title="Parallel Match agents", version="0.2.0", lifespan=_lifespan)
@@ -46,7 +97,17 @@ app = FastAPI(title="Parallel Match agents", version="0.2.0", lifespan=_lifespan
 # The hosted front end calls this API from another origin. Comma-separated
 # list; "*" (default) is fine: no cookies or credentials are used.
 _origins = [o.strip() for o in os.environ.get("PM_CORS_ORIGINS", "*").split(",") if o.strip()]
-app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_methods=["*"], allow_headers=["*"],
+                   expose_headers=["Server-Timing"])
+
+
+@app.middleware("http")
+async def _timing(request: Request, call_next):
+    """Server-Timing header on every response, to see where time goes."""
+    t0 = time.perf_counter()
+    response = await call_next(request)
+    response.headers["Server-Timing"] = f"app;dur={(time.perf_counter() - t0) * 1000:.0f}"
+    return response
 
 
 def _store() -> HistoryStore:
@@ -102,6 +163,7 @@ def health():
         "model_last_error": getattr(provider, "last_error", None),
         "precedent_source": source(),
         "history_mcp": history_client.status(),
+        "cache": cache.stats(),
         "season": store.season_summary(),
     }
 
@@ -112,33 +174,44 @@ def narrate(body: NarrateBody):
     fork = body.fork_response
     match_id = (body.match_id or fork.get("match_id")
                 or (fork.get("request") or {}).get("match_id") or "")
-    return narrator.run(fork, store.match(match_id), get_provider())
+    facts = fork_facts(fork)
+    return _cached(cache.key("narrate", match_id, facts),
+                   lambda: narrator.run(fork, store.match(match_id), get_provider()))
 
 
 @app.post("/explain")
 def explain(body: EventBody):
     store = _store()
     event, _index = _event_or_404(store, body.match_id, body.event_id)
-    return law_explainer.run(store.match(body.match_id), event, get_provider())
+    return _cached(cache.key("explain", body.match_id, body.event_id),
+                   lambda: law_explainer.run(store.match(body.match_id), event, get_provider()))
 
 
 @app.post("/precedents")
 def precedents(body: PrecedentsBody):
     store = _store()
     event, _index = _event_or_404(store, body.match_id, body.event_id)
-    block, via = history_client.precedent(body.match_id, body.event_id)
-    if block is None:
-        raise HTTPException(404, "moment is not a contestable call (foul or offside decision)")
     fork = body.fork_response
     if fork and (fork.get("match_id"), fork.get("event_id")) not in (
             (body.match_id, body.event_id), (None, None)):
         raise HTTPException(422, "fork_response is for a different moment")
-    if fork is not None and "match" not in fork:
-        fork = {**fork, "match": store.match(body.match_id)}
-    block = compare_with_simulation(block, fork)
-    result = historian.run(store.match(body.match_id), event, block, get_provider())
-    result["source"] = via   # "mcp" (via pm-history-mcp) or "in-process" fallback
-    return result
+    sim = None
+    if fork:
+        sim = [(fork.get("history") or {}).get("sim_shift_att_win"), fork.get("outcome_shift")]
+
+    def compute() -> dict:
+        block, via = history_client.precedent(body.match_id, body.event_id)
+        if block is None:
+            raise HTTPException(404, "moment is not a contestable call (foul or offside decision)")
+        f = fork
+        if f is not None and "match" not in f:
+            f = {**f, "match": store.match(body.match_id)}
+        result = historian.run(store.match(body.match_id), event,
+                               compare_with_simulation(block, f), get_provider())
+        result["source"] = via   # "mcp" (via pm-history-mcp) or "in-process" fallback
+        return result
+
+    return _cached(cache.key("precedents", body.match_id, body.event_id, sim), compute)
 
 
 @app.post("/parse")

@@ -107,16 +107,22 @@ def run(fork_response: dict, match: dict | None = None,
         provider: ChatProvider | None = None) -> dict:
     facts = build_facts(fork_response, match)
     provider = provider or TemplateProvider()
-    script = []
-    fell_back = False
-    for line in template_script(facts):
-        text, fb = phrase(provider, prompts.NARRATOR, facts, line["text"])
-        fell_back = fell_back or fb
-        script.append({"timeline": line["timeline"], "text": text})
+    lines = template_script(facts)
+    # The four lines are independent: phrase them concurrently, so a model
+    # backend costs one round trip, not four in a row.
+    if isinstance(provider, TemplateProvider):
+        results = [phrase(provider, prompts.NARRATOR, facts, line["text"]) for line in lines]
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=len(lines)) as pool:
+            results = list(pool.map(
+                lambda line: phrase(provider, prompts.NARRATOR, facts, line["text"]), lines))
+    script = [{"timeline": line["timeline"], "text": text}
+              for line, (text, _fb) in zip(lines, results)]
     return {
         "match_id": facts["match_id"],
         "event_id": facts["event_id"],
         "script": script,
         "facts": facts,
-        "fell_back": fell_back,
+        "fell_back": any(fb for _text, fb in results),
     }

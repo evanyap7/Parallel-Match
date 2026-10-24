@@ -79,7 +79,7 @@ class AgentFrameworkProvider:
         from agent_framework.foundry import FoundryChatClient
 
         self.model = model
-        self.timeout_s = timeout_s or float(os.environ.get("PM_AGENT_TIMEOUT_S", "8"))
+        self.timeout_s = timeout_s or float(os.environ.get("PM_AGENT_TIMEOUT_S", "6"))
         # After a failure, skip the model for a while so a down model costs
         # one timeout, not one per utterance (callers fall back to templates).
         self.cooldown_s = float(os.environ.get("PM_AGENT_COOLDOWN_S", "60"))
