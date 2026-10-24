@@ -78,7 +78,8 @@ API endpoints: `GET /health`, `POST /narrate`, `POST /explain`,
 
 The agents and the MCP server read the real 90-match season: fixtures and
 seeds from `parallel_match/data/season.json`, replayed once per process at
-startup (`mcp_history/season_source.py`, a few seconds). The match JSON is
+startup via `parallel_match.season.match_dicts()`
+(`mcp_history/season_source.py`, a few seconds). The match JSON is
 identical to `GET /match/{id}` on the simulator API. `data/dev_season/` and
 `tools/make_dev_season.py` are retired.
 
@@ -100,10 +101,10 @@ its chance of scoring within 10 minutes. `history_shift_att_win` is
 precedent's estimate of flipping the call (null when either group has fewer
 than 5 cases).
 
-When `parallel_match.history.history_for` exists (Evan's wrapper), it is
-called directly. Until then `mcp_history/precedent.py` computes the block from
-the same `parallel_match.history` functions `/fork` uses, so the numbers
-already match; tests assert this against `fixtures/fork_m052.json`.
+`mcp_history/precedent.py` calls `parallel_match.history.history_for` and,
+for the simulation side, `parallel_match.history.compare_with_simulation`,
+exactly as `/fork` does; tests assert the numbers match
+`fixtures/fork_m052.json`.
 
 `POST /precedents` takes an optional `fork_response`. With it, the response
 adds `sim_shift_att_win` and `agrees_with_simulation`, and the Historian's

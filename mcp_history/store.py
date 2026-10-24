@@ -348,6 +348,6 @@ def default_store() -> HistoryStore:
     """
     global _DEFAULT
     if _DEFAULT is None:
-        from .season_source import season_data
-        _DEFAULT = HistoryStore(season_data().matches)
+        from .season_source import season_matches
+        _DEFAULT = HistoryStore(season_matches())
     return _DEFAULT
