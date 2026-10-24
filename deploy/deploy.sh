@@ -177,6 +177,17 @@ upsert() {
   local name="$1" image="$2" port="$3" cpu="$4" mem="$5" min="$6" max="$7"; shift 7
   local scale=(--cpu "$cpu" --memory "$mem" --min-replicas "$min" --max-replicas "$max")
   if exists "$name"; then
+    # Apps left by a failed first deploy can carry a system-assigned identity,
+    # which express environments refuse on every update: recreate those.
+    local idtype prov
+    idtype="$(az containerapp show -n "$name" -g "$RESOURCE_GROUP" --query identity.type -o tsv 2>/dev/null || true)"
+    prov="$(az containerapp show -n "$name" -g "$RESOURCE_GROUP" --query properties.provisioningState -o tsv 2>/dev/null || true)"
+    if [[ "$idtype" == *SystemAssigned* || "$prov" == Failed ]]; then
+      log "recreating $name (left over from an earlier failed deploy)"
+      az containerapp delete -n "$name" -g "$RESOURCE_GROUP" --yes > /dev/null || return 1
+    fi
+  fi
+  if exists "$name"; then
     log "updating $name"
     az containerapp identity assign -n "$name" -g "$RESOURCE_GROUP" --user-assigned "$IDENTITY_ID" > /dev/null || return 1
     az containerapp registry set -n "$name" -g "$RESOURCE_GROUP" --server "$ACR_SERVER" \
