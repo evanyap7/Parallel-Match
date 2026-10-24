@@ -1,0 +1,12 @@
+# Keeps `az acr build` uploads small (the build context is the repo root).
+.git
+.venv
+**/__pycache__
+**/*.pyc
+*.egg-info
+.env
+.env.*
+frontend/node_modules
+frontend/dist
+reports
+docs
