@@ -119,6 +119,17 @@ The agents API allows any origin (`PM_CORS_ORIGINS=*`, no cookies are used);
 set it to the `pm-web` URL to lock it down. The simulator API already allows
 any origin.
 
+## Hosting check (for the team and judges)
+
+`./deploy/deploy.sh status` prints what is actually live: each app's CPU,
+memory, minimum and maximum replicas and release, the warm cost per day, the
+estimate to the end of judging (10 Nov, 11:59 pm PT), and the time for a
+featured and a fresh fork. Paste its latest output here.
+
+```
+(not yet recorded)
+```
+
 ## 3. Azure AI Foundry (the model behind the agents)
 
 1. `./deploy/deploy.sh foundry-create` creates the Foundry resource, a

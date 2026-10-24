@@ -13,7 +13,10 @@ The site must stay up and free to use until judging ends: **10 Nov, 11:59 pm PT*
 - [ ] Category chosen and named in the pitch (one category prize per project)
 - [x] Live link works (`./deploy/smoke.sh` all ok, 24 Oct)
 - [ ] Live link checked on a phone on mobile data
-- [ ] Foundry on (agents `/health` shows `agent-framework/foundry`)
+- [ ] Hosting confirmed with `./deploy/deploy.sh status` (pm-api 2 vCPU, every
+  app min 1 replica, cost to 10 Nov inside the credit); output in `docs/deployment.md`
+- [x] Foundry on: agents `/health` shows `agent-framework/foundry`, model
+  `gpt-4.1-mini`, no model error; Narrator text is model-phrased (24 Oct)
 - [ ] Video under 2 minutes, public on YouTube or Vimeo, no copyrighted music
 - [ ] Repo public, README "Live demo" link filled in, stack table says "live"
 - [ ] Everything in English
@@ -48,28 +51,31 @@ guardrails. All data is synthetic. It runs on Azure Container Apps.
   Historian fetches its facts through it (`mcp_history/`, `agents/history_client.py`)
 - **Azure Container Apps**: four apps, user-assigned managed identity, Azure
   Container Registry (`deploy/`)
-- **GitHub Copilot**: list it only if the team actually used it; otherwise
-  delete this line.
-- **Microsoft Fabric**: list it only once `docs/fabric.md` step 3 has been
-  run and matched (screenshot in `docs/img/`). Then: "season decisions in a
-  Fabric Lakehouse; the precedent query runs on its SQL analytics endpoint with
-  the same result as the app". Otherwise delete this line.
+<!-- Claim these two only if true:
+- GitHub Copilot: add a line only if the team used it while building.
+- Microsoft Fabric: add "season decisions in a Fabric Lakehouse; the precedent
+  query runs on its SQL analytics endpoint with the same result as the app"
+  only once docs/fabric.md step 3 has matched, with docs/img/fabric-precedent-m052.png.
+-->
 
 ## Testing instructions (for judges)
 
-No login needed.
+No login needed. Works on desktop and phone.
 
 1. Open https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io
-2. Choose match **m052** (Westfield Rangers 2-1 Copperfield FC) and tap the
-   penalty at **56'**.
-3. Type "what if that was not a penalty?" in the what-if box. The
-   split screen shows both timelines; the result card shows the change in win
-   share with its 95% interval.
-4. Read the agent panels: Narrator (both timelines), Law Explainer (Law 12 and
-   how close the decision was), Historian (season precedent, fetched via MCP,
-   and whether it agrees with the simulation).
-5. Try any other match and moment. Featured moments answer in about a
-   second; other moments are simulated live and take about 15 seconds.
+2. Choose match **m052** (Westfield Rangers 2-1 Copperfield FC). On the
+   timeline, pick the **penalty at 56'**.
+3. Tap the question button ("What if…?"), or type your own, e.g. "what if
+   that wasn't a penalty?". The match is replayed from that moment with the
+   call reversed.
+4. Read the verdict: how the result changes, as a shift in win share with its
+   95% interval, and the alternate timeline's commentary.
+5. Switch to the **Analyst** tab for the evidence: the decision and the Law it
+   falls under, outcome shares, alternate final scores, the Historian's season
+   precedent (fetched through the MCP server) and whether it agrees with the
+   simulation, and the divergence log.
+6. Try another match and moment. Featured moments answer in about a second;
+   other moments are simulated live and take up to about 20 seconds.
 
 Service health, for the curious: https://pm-agents.agreeableflower-13af161d.japaneast.azurecontainerapps.io/health shows the model provider
 (Foundry) and the MCP connection. MCP endpoint (streamable HTTP):
