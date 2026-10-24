@@ -159,7 +159,7 @@ docker_login() {
   [[ "$BUILDER" == "acr" ]] && return 0
   command -v docker > /dev/null || { echo "Docker is needed to build images (PM_BUILDER=docker): install Docker Desktop and start it" >&2; exit 1; }
   docker info > /dev/null 2>&1 || { echo "Docker is installed but not running: start Docker Desktop" >&2; exit 1; }
-  docker buildx version > /dev/null 2>&1 || { echo "docker buildx is missing: update Docker Desktop" >&2; exit 1; }
+  docker buildx version > /dev/null 2>&1 || { echo "docker buildx is missing: update Docker Desktop, or with Colima: brew install docker-buildx and link it into ~/.docker/cli-plugins (see docs/deployment.md)" >&2; exit 1; }
   az acr login -n "$ACR_NAME" > /dev/null
 }
 

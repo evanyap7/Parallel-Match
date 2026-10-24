@@ -15,7 +15,14 @@ Images are built locally with Docker (`docker buildx`, `linux/amd64`, also on
 Apple Silicon) and pushed to the registry: Azure for Students blocks ACR Tasks
 (`az acr build` fails with `TasksOperationsNotAllowed`). On a subscription
 that allows it, `PM_BUILDER=acr` builds in Azure instead. Docker Desktop must
-be running.
+be running, or Colima on a Mac:
+
+```bash
+brew install colima docker docker-buildx
+mkdir -p ~/.docker/cli-plugins
+ln -sfn "$(brew --prefix)/opt/docker-buildx/bin/docker-buildx" ~/.docker/cli-plugins/docker-buildx
+colima start --cpu 4 --memory 6 --vm-type vz --vz-rosetta
+```
 Everything runs on `PM_AGENT_BACKEND=template` until Foundry is wired, so the
 demo never depends on credits or a model being up.
 
