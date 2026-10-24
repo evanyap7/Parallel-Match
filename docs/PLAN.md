@@ -1,5 +1,9 @@
 # Parallel Match: build plan
 
+> **Current plan: see [REMAINING.md](REMAINING.md)** for what's left, who does what, and
+> the checkpoints to submission. This file is the original plan, kept for the rules
+> and context.
+
 Team: Evan (simulator, forks, API), Jiawei (agents, Microsoft stack, deployment),
 Uwais (front end, demand check, video).
 
