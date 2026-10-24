@@ -281,16 +281,18 @@ mcp_url() {
 # User Access Administrator) there, which an Azure for Students owner has.
 setup_foundry() {
   if [[ -n "${AZURE_AI_FOUNDRY_RESOURCE_ID:-}" ]]; then
-    # "Azure AI User" is the Foundry role, but not every tenant has it yet;
-    # "Cognitive Services OpenAI User" covers calls to OpenAI model deployments.
-    local role
-    for role in "Azure AI User" "Cognitive Services OpenAI User"; do
+    # "Azure AI User" is the Foundry role, but not every tenant has it. On the
+    # student tenant, calls through the project endpoint returned 403 with only
+    # "Cognitive Services OpenAI User"; "Cognitive Services User" covers them.
+    # All roles are scoped to this one Foundry resource. New grants can take
+    # 5-10 minutes to apply (403 until then; the agents use templates meanwhile).
+    local role granted=0
+    for role in "Azure AI User" "Cognitive Services OpenAI User" "Cognitive Services User"; do
       if az role definition list --name "$role" --query "[0].name" -o tsv 2>/dev/null | grep -q .; then
-        grant "$IDENTITY_PRINCIPAL" "$role" "$AZURE_AI_FOUNDRY_RESOURCE_ID" && return 0
+        grant "$IDENTITY_PRINCIPAL" "$role" "$AZURE_AI_FOUNDRY_RESOURCE_ID" && granted=1
       fi
     done
-    echo "could not grant a Foundry role to $IDENTITY_NAME; see docs/deployment.md section 3" >&2
-    return 1
+    [[ "$granted" == 1 ]] || { echo "could not grant a Foundry role to $IDENTITY_NAME; see docs/deployment.md section 3" >&2; return 1; }
   else
     log "set AZURE_AI_FOUNDRY_RESOURCE_ID to grant access automatically, or in the portal:"
     log "  Foundry resource > Access control (IAM) > Add role assignment >"
