@@ -176,6 +176,7 @@ fqdn() {
 upsert() {
   local name="$1" image="$2" port="$3" cpu="$4" mem="$5" min="$6" max="$7"; shift 7
   local scale=(--cpu "$cpu" --memory "$mem" --min-replicas "$min" --max-replicas "$max")
+  set -- "$@" PM_RELEASE="$IMAGE_TAG"   # each deploy is visibly a new release
   if exists "$name"; then
     # Apps left by a failed first deploy can carry a system-assigned identity,
     # which express environments refuse on every update: recreate those.
@@ -229,9 +230,9 @@ deploy_agents() {
   upsert pm-agents "$AGENTS_IMAGE" 8000 "${SIZE_AGENTS[@]}" \
     PM_SERVICE=api PM_AGENT_BACKEND="$BACKEND" AZURE_CLIENT_ID="$IDENTITY_CLIENT_ID" \
     AZURE_AI_FOUNDRY_PROJECT_ENDPOINT="${AZURE_AI_FOUNDRY_PROJECT_ENDPOINT:-}" \
-    AZURE_AI_FOUNDRY_MODEL="${AZURE_AI_FOUNDRY_MODEL:-gpt-4o-mini}"
+    AZURE_AI_FOUNDRY_MODEL="${AZURE_AI_FOUNDRY_MODEL:-gpt-4o-mini}" \
+    PM_HISTORY_MCP_URL="$(mcp_url)"
   if [[ "$BACKEND" == "foundry" ]]; then setup_foundry; fi
-  link_mcp
 }
 
 deploy_mcp() {
@@ -264,15 +265,13 @@ deploy_hello() {
   upsert pm-hello "$HELLO_IMAGE" 8000 0.25 0.5Gi 0 1
 }
 
-# Point the agents at the MCP server, so the Historian fetches precedent via
-# MCP (it falls back in process if MCP is unreachable).
-link_mcp() {
-  local mcp; mcp="$(fqdn pm-history-mcp)"
-  if [[ -n "$mcp" ]] && exists pm-agents; then
-    log "pm-agents -> MCP at https://$mcp/mcp"
-    az containerapp update -n pm-agents -g "$RESOURCE_GROUP" \
-      --set-env-vars PM_HISTORY_MCP_URL="https://$mcp/mcp" > /dev/null
-  fi
+# The MCP server's URL, known before it exists: apps get <name>.<env domain>.
+# Express environments do not restart a running replica when only env vars
+# change, so the agents get this at deploy time together with their image.
+mcp_url() {
+  local domain
+  domain="$(az containerapp env show -n "$ENV_NAME" -g "$RESOURCE_GROUP" --query properties.defaultDomain -o tsv)"
+  [[ -n "$domain" ]] && echo "https://pm-history-mcp.$domain/mcp"
 }
 
 # Foundry access: grant the user-assigned identity "Azure AI User" on the
@@ -358,7 +357,7 @@ case "$WHAT" in
     az group delete -n "$RESOURCE_GROUP" --yes --no-wait; echo "deleting $RESOURCE_GROUP" ;;
   api)     prepare; u=$(deploy_api);    echo "api: $u" ;;
   agents)  prepare; u=$(deploy_agents); echo "agents: $u" ;;
-  mcp)     prepare; u=$(deploy_mcp);    echo "mcp: $u/mcp"; link_mcp ;;
+  mcp)     prepare; u=$(deploy_mcp);    echo "mcp: $u/mcp" ;;
   web)     prepare; u=$(deploy_web);    echo "web: $u" ;;
   hello)   prepare; u=$(deploy_hello);  echo "hello: $u" ;;
   urls)    urls ;;
@@ -368,7 +367,6 @@ case "$WHAT" in
     u=$(deploy_agents); echo "agents: $u"
     AGENTS_BUILT=1
     u=$(deploy_mcp);    echo "mcp: $u/mcp"
-    link_mcp
     u=$(deploy_web);    echo "web: $u"
     echo
     echo "Smoke test:  ./deploy/smoke.sh"
