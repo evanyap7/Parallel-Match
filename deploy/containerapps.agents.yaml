@@ -1,4 +1,4 @@
-# Declarative form of `deploy/deploy.sh` (agents app only). If you prefer
+# Declarative form of `deploy/deploy.sh agents` (agents app only). If you prefer
 # YAML over the CLI flags:
 #   az containerapp create -n pm-agents -g $AZURE_RESOURCE_GROUP \
 #     --environment pm-env --yaml deploy/containerapps.agents.yaml
@@ -16,11 +16,13 @@ properties:
             value: template          # foundry once the project is wired
           - name: AZURE_AI_FOUNDRY_PROJECT_ENDPOINT
             secretRef: foundry-endpoint
+          - name: AZURE_AI_FOUNDRY_MODEL
+            value: gpt-4o-mini
         resources:
-          cpu: 0.5
-          memory: 1Gi
+          cpu: 1.0
+          memory: 2Gi
     scale:
-      minReplicas: 0
+      minReplicas: 1        # the season replays at startup; avoid cold starts
       maxReplicas: 2
   configuration:
     activeRevisionsMode: Single

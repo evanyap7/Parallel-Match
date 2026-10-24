@@ -1,0 +1,38 @@
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript image/svg+xml;
+
+    # Hashed build assets never change: cache hard.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Same-origin path the front end uses for the agents API (frontend/src/
+    # agents.ts defaults to /agents; Vite proxies it the same way in dev).
+    # AGENTS_UPSTREAM is the agents app's URL, filled in at container start
+    # by the nginx image's envsubst step.
+    location /agents/ {
+        proxy_pass ${AGENTS_UPSTREAM}/;
+        proxy_ssl_server_name on;
+        proxy_http_version 1.1;
+        proxy_read_timeout 90s;
+    }
+
+    location = /health {
+        default_type application/json;
+        return 200 '{"status":"ok"}';
+    }
+
+    # Single-page app: unknown paths fall back to index.html, never cached,
+    # so a redeploy with new API URLs shows up on the next load.
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+    }
+}

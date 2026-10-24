@@ -5,12 +5,16 @@ Endpoints (all POST bodies are JSON):
 - GET  /health                     -> service + provider + season status
 - POST /narrate                    {fork_response, match_id?}
 - POST /explain                    {match_id, event_id}
-- POST /precedents                 {match_id, event_id, limit?}
+- POST /precedents                 {match_id, event_id, fork_response?}
+                                   (fetched through the MCP server when
+                                   PM_HISTORY_MCP_URL is set; `source` says)
 - POST /parse                      {text, match_id, event_id}
 
-Matches come from the local fixture/history directories (the shared contract
-fixture first). When Evan's match API is live, PM_FIXTURES_DIR points at the
-exported season and nothing else changes: the agents only read match JSON.
+Matches are the real 90-match season (parallel_match/data/season.json,
+replayed once at startup). Precedent numbers come from history_for(), the
+same source as the `history` block of POST /fork. Pass the fork response to
+/precedents to get the simulation's estimate alongside and the
+`agrees_with_simulation` flag for the "these disagree" card.
 
 Run:  PM_AGENT_BACKEND=template uvicorn agents.server:app --port 8001
 """
@@ -18,25 +22,46 @@ Run:  PM_AGENT_BACKEND=template uvicorn agents.server:app --port 8001
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import historian, intervention, law_explainer, narrator
-from .provider import get_provider
+from . import history_client, historian, intervention, law_explainer, narrator
+from .provider import get_provider, provider_error
 from mcp_history import HistoryStore, default_store
+from mcp_history.precedent import compare_with_simulation, source
 
-FIXTURES_DIR = os.environ.get("PM_FIXTURES_DIR", "fixtures")
-HISTORY_DIR = os.environ.get("PM_HISTORY_DIR", "data/dev_season")
 
-app = FastAPI(title="Parallel Match agents", version="0.1.0")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    default_store()   # replay the season before taking traffic
+    get_provider()    # build (or fall back from) the model provider once
+    yield
+
+
+app = FastAPI(title="Parallel Match agents", version="0.2.0", lifespan=_lifespan)
+
+# The hosted front end calls this API from another origin. Comma-separated
+# list; "*" (default) is fine: no cookies or credentials are used.
+_origins = [o.strip() for o in os.environ.get("PM_CORS_ORIGINS", "*").split(",") if o.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_methods=["*"], allow_headers=["*"])
 
 
 def _store() -> HistoryStore:
-    return default_store(FIXTURES_DIR, HISTORY_DIR)
+    return default_store()
+
+
+def _match_or_404(store: HistoryStore, match_id: str) -> dict:
+    match = store.match(match_id)
+    if match is None:
+        raise HTTPException(404, f"match '{match_id}' not found")
+    return match
 
 
 def _event_or_404(store: HistoryStore, match_id: str, event_id: str):
+    _match_or_404(store, match_id)
     found = store.event(match_id, event_id)
     if found is None:
         raise HTTPException(404, f"event '{event_id}' not found in match '{match_id}'")
@@ -54,7 +79,8 @@ class EventBody(BaseModel):
 
 
 class PrecedentsBody(EventBody):
-    limit: int = 8
+    fork_response: dict | None = None
+    limit: int | None = None   # accepted for backward compatibility; unused
 
 
 class ParseBody(EventBody):
@@ -64,15 +90,17 @@ class ParseBody(EventBody):
 @app.get("/health")
 def health():
     store = _store()
-    try:
-        provider = get_provider()
-        provider_name, error = provider.name, None
-    except Exception as exc:  # unconfigured foundry: report, stay up on template
-        provider_name, error = "template (foundry misconfigured)", str(exc)
+    provider = get_provider()
+    configured = os.environ.get("PM_AGENT_BACKEND", "template")
     return {
         "status": "ok",
-        "provider": provider_name,
-        "provider_error": error,
+        "backend_configured": configured,
+        "provider": provider.name,
+        "provider_error": provider_error(),
+        "model": getattr(provider, "model", None),
+        "model_last_error": getattr(provider, "last_error", None),
+        "precedent_source": source(),
+        "history_mcp": history_client.status(),
         "season": store.season_summary(),
     }
 
@@ -80,9 +108,10 @@ def health():
 @app.post("/narrate")
 def narrate(body: NarrateBody):
     store = _store()
-    match = store.match(body.match_id or body.fork_response.get("request", {}).get("match_id", ""))
-    result = narrator.run(body.fork_response, match, get_provider())
-    return result
+    fork = body.fork_response
+    match_id = (body.match_id or fork.get("match_id")
+                or (fork.get("request") or {}).get("match_id") or "")
+    return narrator.run(fork, store.match(match_id), get_provider())
 
 
 @app.post("/explain")
@@ -96,16 +125,23 @@ def explain(body: EventBody):
 def precedents(body: PrecedentsBody):
     store = _store()
     event, _index = _event_or_404(store, body.match_id, body.event_id)
-    result = store.query(body.match_id, body.event_id, limit=body.limit)
-    if result is None:
-        raise HTTPException(404, "moment is not a contestable family event")
-    return historian.run(store.match(body.match_id), event, result, get_provider())
+    block, via = history_client.precedent(body.match_id, body.event_id)
+    if block is None:
+        raise HTTPException(404, "moment is not a contestable call (foul or offside decision)")
+    fork = body.fork_response
+    if fork and (fork.get("match_id"), fork.get("event_id")) not in (
+            (body.match_id, body.event_id), (None, None)):
+        raise HTTPException(422, "fork_response is for a different moment")
+    if fork is not None and "match" not in fork:
+        fork = {**fork, "match": store.match(body.match_id)}
+    block = compare_with_simulation(block, fork)
+    result = historian.run(store.match(body.match_id), event, block, get_provider())
+    result["source"] = via   # "mcp" (via pm-history-mcp) or "in-process" fallback
+    return result
 
 
 @app.post("/parse")
 def parse(body: ParseBody):
     store = _store()
-    match = store.match(body.match_id)
-    if match is None:
-        raise HTTPException(404, f"match '{body.match_id}' not found")
+    match = _match_or_404(store, body.match_id)
     return intervention.parse_and_validate(body.text, match, body.event_id)

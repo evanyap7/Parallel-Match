@@ -52,8 +52,31 @@ class AgentsServiceTests(unittest.TestCase):
     def test_precedents(self):
         body = self.client.post("/precedents",
                                 json={"match_id": "m012", "event_id": FOUL}).json()
-        self.assertIn("n", body["stats"])
+        self.assertIn("n", body["history"])
         self.assertTrue(body["text"])
+
+    def test_precedents_with_fork_matches_fork_history(self):
+        fork = json.load(open(os.path.join(REPO, "fixtures", "fork_m052.json")))
+        body = self.client.post("/precedents", json={
+            "match_id": fork["match_id"], "event_id": fork["event_id"],
+            "fork_response": fork}).json()
+        self.assertEqual(body["history"]["n"], fork["history"]["n"])
+        self.assertEqual(body["agrees_with_simulation"],
+                         fork["history"]["agrees_with_simulation"])
+
+    def test_precedents_rejects_fork_for_other_moment(self):
+        fork = json.load(open(os.path.join(REPO, "fixtures", "fork_m052.json")))
+        status = self.client.post("/precedents", json={
+            "match_id": "m012", "event_id": FOUL, "fork_response": fork}).status_code
+        self.assertEqual(status, 422)
+
+    def test_cors_allows_hosted_front_end(self):
+        r = self.client.options("/narrate", headers={
+            "Origin": "https://pm-web.example.azurecontainerapps.io",
+            "Access-Control-Request-Method": "POST"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(r.headers.get("access-control-allow-origin"), ("*",
+                      "https://pm-web.example.azurecontainerapps.io"))
 
     def test_narrate(self):
         fork = json.load(open(os.path.join(REPO, "fixtures", "fork_m012.json")))
@@ -72,8 +95,15 @@ class AgentsServiceTests(unittest.TestCase):
 class McpServerTests(unittest.TestCase):
     def test_history_query_tool(self):
         result = mcp_server.history_query("m012", FOUL)
-        self.assertIn("stats", result)
-        self.assertGreater(result["stats"]["n"], 0)
+        self.assertIn("when_given", result)
+        self.assertGreater(result["n"], 0)
+
+    def test_history_query_matches_fork_history(self):
+        fork = json.load(open(os.path.join(REPO, "fixtures", "fork_m052.json")))
+        result = mcp_server.history_query(fork["match_id"], fork["event_id"])
+        self.assertEqual(result["n"], fork["history"]["n"])
+        self.assertEqual(result["history_shift_att_win"],
+                         fork["history"]["history_shift_att_win"])
 
     def test_history_query_unknown_event_tool(self):
         result = mcp_server.history_query("m012", "m012-9999")
@@ -81,7 +111,7 @@ class McpServerTests(unittest.TestCase):
 
     def test_season_summary_tool(self):
         summary = mcp_server.season_summary()
-        self.assertGreaterEqual(summary["matches"], 1)
+        self.assertEqual(summary["matches"], 90)
         self.assertIn("contestable_moments", summary)
 
 

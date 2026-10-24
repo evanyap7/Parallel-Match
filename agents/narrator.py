@@ -1,6 +1,6 @@
 """Narrator agent: commentary for both timelines of a fork.
 
-Input is a POST /fork response (fixtures/fork_m012.json shape). Output is a
+Input is a POST /fork response (fixtures/fork_m052.json shape). Output is a
 short script: the real timeline, the alternate timeline, the divergence
 point and a verdict card, all phrased from computed facts. Alternate-timeline
 results are labelled model world, per the competition plan.
@@ -9,7 +9,7 @@ results are labelled model world, per the competition plan.
 from __future__ import annotations
 
 from . import prompts
-from .facts import fork_facts
+from .facts import club_name, fork_facts
 from .laws import CALL_PHRASES
 from .provider import ChatProvider, TemplateProvider, phrase
 
@@ -26,30 +26,36 @@ def _pct(value) -> int | None:
 def build_facts(fork_response: dict, match: dict | None = None) -> dict:
     facts = fork_facts(fork_response)
     if match:
-        facts["home_label"] = match["home"]
-        facts["away_label"] = match["away"]
+        facts["home_label"] = club_name(match["home"])
+        facts["away_label"] = club_name(match["away"])
     else:
         facts["home_label"] = "home"
         facts["away_label"] = "away"
-    change = facts.get("change") or {}
-    alt_call = change.get("call")
+    alt_call = facts.get("alternate_call")
     facts["moment_call_phrase"] = CALL_PHRASES.get(
         facts.get("moment_call"), "the decision stands"
     )
     facts["alternate_call_phrase"] = CALL_PHRASES.get(
         alt_call, f"the decision becomes '{alt_call}'" if alt_call else "the decision is changed"
     )
-    orig_p = _pct((facts.get("original_last_winprob") or {}).get("home"))
-    alt_p = _pct((facts.get("alternate_last_winprob") or {}).get("home"))
-    # Percentages are stored as facts (ints) so grounding checks pass exactly.
-    if orig_p is not None:
-        facts["original_home_win_pct"] = orig_p
-    if alt_p is not None:
-        facts["alternate_home_win_pct"] = alt_p
-    if orig_p is not None and alt_p is not None:
+    orig = facts.get("original_outcome") or {}
+    alt = facts.get("alternate_outcome") or {}
+    shares = {}
+    for side in ("home", "draw", "away"):
+        o, a = _pct(orig.get(side)), _pct(alt.get(side))
+        if o is not None and a is not None:
+            # Percentages are stored as facts (ints) so grounding checks pass exactly.
+            facts[f"original_{side}_share_pct"] = o
+            facts[f"alternate_{side}_share_pct"] = a
+            shares[side] = (o, a)
+    if "home" in shares and "away" in shares:
+        (oh, ah), (oa, aa) = shares["home"], shares["away"]
+        runs = facts.get("rollouts")
+        over = f" over {runs} rollouts" if runs else ""
         facts["winprob_shift_sentence"] = (
-            f"Model world: the home win probability finishes at {alt_p}% "
-            f"instead of {orig_p}%."
+            f"Model world{over} from this moment: {facts['home_label']} win "
+            f"{ah}% of finishes instead of {oh}%, and {facts['away_label']} "
+            f"{aa}% instead of {oa}%."
         )
     else:
         facts["winprob_shift_sentence"] = "Model world: win-probability lines diverge from the fork onward."

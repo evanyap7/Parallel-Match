@@ -1,7 +1,10 @@
 # Parallel Match agents + MCP history image.
+# Build context is the repo root:  az acr build --file deploy/Dockerfile .
 # One image, two services (PM_SERVICE selects):
-#   PM_SERVICE=api  -> uvicorn agents.server:app        (agents REST API)
-#   PM_SERVICE=mcp  -> python -m mcp_history.server      (MCP, streamable-http)
+#   PM_SERVICE=api  -> uvicorn agents.server:app        (agents REST API, :8000)
+#   PM_SERVICE=mcp  -> python -m mcp_history.server      (MCP streamable-http, :8080/mcp)
+# Both read the real 90-match season from parallel_match/data/season.json and
+# replay it once at startup (a few seconds).
 FROM python:3.13-slim
 
 WORKDIR /app
@@ -10,15 +13,16 @@ COPY pyproject.toml README.md ./
 COPY parallel_match ./parallel_match
 COPY agents ./agents
 COPY mcp_history ./mcp_history
-COPY fixtures ./fixtures
-COPY data ./data
 
-RUN pip install --no-cache-dir ".[agents,mcp]"
+# foundry extra: Microsoft Agent Framework + azure-identity (managed identity).
+# PM_AGENT_BACKEND=template still works with no Azure configuration at all.
+RUN pip install --no-cache-dir ".[agents,mcp,foundry]"
 
-ENV PM_FIXTURES_DIR=/app/fixtures \
-    PM_HISTORY_DIR=/app/data/dev_season \
+ENV PYTHONUNBUFFERED=1 \
     PM_SERVICE=api \
-    PORT=8000
+    PORT=8000 \
+    PM_MCP_HOST=0.0.0.0 \
+    PM_MCP_PORT=8080
 
 EXPOSE 8000 8080
 

@@ -1,120 +1,181 @@
 # Deployment runbook (Jiawei track)
 
-Goal: find every Azure problem in the first hour, then keep the agents API
-and the MCP history server live for the front end and the judges.
+Goal: one public link for the judges (the front end), backed by the simulator
+API, the agents API and the MCP history server, all on Azure Container Apps.
 
-Everything runs on `PM_AGENT_BACKEND=template` until Foundry is wired, so
-the demo never depends on credits or a model being up.
+| App | Image (Dockerfile) | Port | What |
+|---|---|---|---|
+| `pm-web` | `deploy/frontend/Dockerfile` | 80 | React match viewer (nginx). **The link the judges open.** |
+| `pm-api` | `Dockerfile` (root) | 8000 | Simulator API: matches, `/fork`, precomputed story forks |
+| `pm-agents` | `deploy/Dockerfile`, `PM_SERVICE=api` | 8000 | Narrator, Law Explainer, Historian, parser |
+| `pm-history-mcp` | `deploy/Dockerfile`, `PM_SERVICE=mcp` | 8080 | MCP over streamable HTTP at `/mcp` |
+| `pm-hello` | `deploy/hello/Dockerfile` | 8000 | First-hour smoke test only |
+
+Images are built locally with Docker (`docker buildx`, `linux/amd64`, also on
+Apple Silicon) and pushed to the registry: Azure for Students blocks ACR Tasks
+(`az acr build` fails with `TasksOperationsNotAllowed`). On a subscription
+that allows it, `PM_BUILDER=acr` builds in Azure instead. Docker Desktop must
+be running, or Colima on a Mac:
+
+```bash
+brew install colima docker docker-buildx
+mkdir -p ~/.docker/cli-plugins
+ln -sfn "$(brew --prefix)/opt/docker-buildx/bin/docker-buildx" ~/.docker/cli-plugins/docker-buildx
+colima start --cpu 4 --memory 6 --vm-type vz --vz-rosetta
+```
+Everything runs on `PM_AGENT_BACKEND=template` until Foundry is wired, so the
+demo never depends on credits or a model being up.
 
 ## 0. Prerequisites (once)
 
+Copy `.env.example` to `.env` (git-ignored) and fill in the subscription,
+resource group, location and a globally unique registry **name**. Then:
+
 ```bash
 az login
-az account set --subscription <AZURE_SUBSCRIPTION_ID>
-az provider register -n Microsoft.App          # Container Apps
+./deploy/deploy.sh setup     # providers, resource group, Basic registry, environment
 ```
 
-Create the shared resources (or use the hackathon-provided ones):
+**Region.** Azure for Students subscriptions only allow a few regions (ours:
+indonesiacentral, japaneast, koreacentral, eastasia, uaenorth). We use
+`japaneast`: Container Apps and Foundry OpenAI models are both available there,
+and everything sits in one region.
 
-```bash
-az group create -n rg-the-home-dugout -l southeastasia
-az acr create -n <registry-name, globally unique> -g rg-the-home-dugout --sku Basic
-az containerapp env create -n pm-env -g rg-the-home-dugout -l southeastasia
-```
+All apps share one user-assigned managed identity (`pm-identity`, created by
+`setup` and granted AcrPull). It pulls images and, for the agents, signs in to
+Foundry (`AZURE_CLIENT_ID`). User-assigned because Container Apps *express*
+environments, which a student subscription can get, do not support
+system-assigned identities. No registry password exists anywhere.
 
-Put the four values in `.env` (copy `.env.example`; `.env` is git-ignored).
+## Cost (Azure for Students, $100 credit)
 
-**Credits check**: `az account show` then Cost Management + Billing in the
-portal - confirm the hackathon sponsorship is attached and see the remaining
-balance. Container Apps with `minReplicas=0` and Basic ACR cost cents/hour;
-Foundry model calls are the only real spend, and template mode uses none.
+The site must stay up and free to use until judging ends (**10 Nov 2026,
+11:59 pm PT**), about 17 days from deploy. Container Apps bills a warm but idle
+replica at about $0.000003 per vCPU-second and per GiB-second, and gives each
+subscription a monthly free grant (180,000 vCPU-s, 360,000 GiB-s, 2M requests).
 
-## 1. First hour: hello-world on Container Apps
+| Item | Size | Warm? | ~per day |
+|---|---|---|---|
+| pm-api | 1 vCPU, 2 GiB | min 1 | $0.78 |
+| pm-agents | 0.5 vCPU, 1 GiB | min 1 | $0.39 |
+| pm-web | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
+| pm-history-mcp | 0.25 vCPU, 0.5 GiB | min 1 | $0.20 |
+| Registry (Basic) | | | $0.17 |
+| Foundry (gpt-4o-mini) | per call | | cents |
 
-The whole point is to flush out registry/ingress/identity problems while
-nothing else depends on them:
+About **$1.75/day, ~$30 to 10 Nov**, before the free grant; active request
+time and image builds add a little. No Log Analytics workspace is created
+(`--logs-destination none`); stream logs with
+`az containerapp logs show -n pm-agents -g <rg> --follow`.
+
+Check the remaining credit at https://www.microsoftazuresponsorships.com/balance.
+After judging: `./deploy/deploy.sh pause` (scale to zero, keeps URLs), and
+after winners are announced (20 Nov) `./deploy/deploy.sh teardown`.
+
+## 1. First hour: hello-world
 
 ```bash
 ./deploy/deploy.sh hello
-# prints: hello: https://pm-hello.<env-domain>
 curl https://pm-hello.<env-domain>/health   # {"status":"ok"}
 ```
 
-If that works, deployment risk is retired. Delete it later with
-`az containerapp delete -n pm-hello -g rg-the-home-dugout`.
+Flushes out registry, ingress and identity problems while nothing depends on
+them. Delete later: `az containerapp delete -n pm-hello -g rg-the-home-dugout`.
 
-## 2. Agents API + MCP server
-
-One image, two apps (deploy.sh builds, pushes and creates both):
+## 2. Everything
 
 ```bash
-./deploy/deploy.sh all
-# agents: https://pm-agents.<env-domain>
-# mcp:    https://pm-history-mcp.<env-domain>/mcp
-curl https://pm-agents.<env-domain>/health
+./deploy/deploy.sh          # api, agents, mcp, then web pointed at api + agents
+./deploy/deploy.sh urls     # print every HTTPS URL (post these in chat)
+./deploy/smoke.sh           # end-to-end check against the live URLs
 ```
 
-- `pm-agents` runs uvicorn (`agents/server.py`) on port 8000.
-- `pm-history-mcp` runs `python -m mcp_history.server` with
-  `PM_MCP_HTTP=1` on port 8080 - an MCP streamable-http endpoint.
+Order matters only for the front end: Vite inlines `VITE_API_BASE_URL` and
+`VITE_AGENTS_BASE_URL` at build time, so `deploy.sh web` reads the live
+`pm-api` / `pm-agents` URLs and rebuilds. Redeploy one piece with
+`./deploy/deploy.sh api|agents|mcp|web`; the first run creates each app, later
+runs roll a new revision with a timestamped image tag.
 
-Re-deploys are the same command; `IMAGE_TAG` defaults to a timestamp so
-revisions roll forward. The declarative equivalent for the agents app is
-`deploy/containerapps.agents.yaml`.
+`smoke.sh` checks: every `/health`; the featured m052 penalty fork returns
+`cached: true`; the Historian's precedent count equals the fork's `history.n`;
+the narrator's verdict uses rollout shares; MCP answers `initialize`; the web
+app serves. Locally:
+
+```bash
+API=http://localhost:8000 AGENTS=http://localhost:8001 \
+  MCP=http://localhost:8080 WEB= ./deploy/smoke.sh
+```
+
+(MCP locally: `PM_MCP_HTTP=1 PM_MCP_HOST=0.0.0.0 python -m mcp_history.server`.)
+
+Sizing: featured forks are precomputed; an uncached fork takes about 9 s on
+1 vCPU. The agents and MCP apps replay the 90-match season once at startup
+(about 6 s, ~140 MB), which is why all four apps stay warm. The Historian
+fetches precedent through `pm-history-mcp` (`PM_HISTORY_MCP_URL`, set by
+`deploy.sh`), falling back to the same function in process if MCP is
+unreachable; `/precedents` returns `source: "mcp"` or `"in-process"`.
+
+The agents API allows any origin (`PM_CORS_ORIGINS=*`, no cookies are used);
+set it to the `pm-web` URL to lock it down. The simulator API already allows
+any origin.
 
 ## 3. Azure AI Foundry (the model behind the agents)
 
-1. Portal -> Azure AI Foundry -> Create project (or use the hackathon's).
-2. Deploy a model (e.g. `gpt-4o-mini`) in the project; note the **project
-   endpoint** (`https://<res>.services.ai.azure.com/api/projects/<id>`)
-   and the **model deployment name**.
-3. Auth: easiest is managed identity -
+1. `./deploy/deploy.sh foundry-create` creates the Foundry resource, a
+   project and a `gpt-4o-mini` deployment (GlobalStandard, 20K tokens/min),
+   then prints the four `.env` lines below. If a step fails (older CLI, or no
+   quota for the model in the region), do that step at ai.azure.com, or set
+   `FOUNDRY_MODEL=gpt-4.1-mini` and rerun.
+2. In `.env`:
 
    ```bash
-   az containerapp identity assign -n pm-agents -g rg-the-home-dugout --system-assigned
-   # grant the returned principal access to the Foundry project (IAM: Reader
-   # + inference permissions) in the portal
+   PM_AGENT_BACKEND=foundry
+   AZURE_AI_FOUNDRY_PROJECT_ENDPOINT=https://<res>.services.ai.azure.com/api/projects/<id>
+   AZURE_AI_FOUNDRY_MODEL=gpt-4o-mini
+   AZURE_AI_FOUNDRY_RESOURCE_ID=/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<res>
    ```
 
-   `agents/provider.py` uses `DefaultAzureCredential`, so the managed
-   identity just works in the container. Locally, `az login` covers it.
-4. Switch the app to the model backend:
+3. `./deploy/deploy.sh agents`. With `foundry` selected it also grants
+   `pm-identity` the **Azure AI User** role on the Foundry resource (needs
+   Owner or User Access Administrator there; otherwise it prints the portal
+   steps). Role assignments can take a few minutes to apply.
+4. `curl https://pm-agents.<env-domain>/health` shows `provider`,
+   `provider_error` and `model_last_error`.
 
-   ```bash
-   ./deploy/deploy.sh agents   # with PM_AGENT_BACKEND=foundry,
-                               # AZURE_AI_FOUNDRY_PROJECT_ENDPOINT and
-                               # AZURE_AI_FOUNDRY_MODEL in the environment
-   ```
+Auth is keyless: in the container `agents/provider.py` uses
+`ManagedIdentityCredential` with `AZURE_CLIENT_ID` (Container Apps sets
+`IDENTITY_ENDPOINT`);
+locally it uses `DefaultAzureCredential`, so `az login` covers it.
 
-   `/health` reports the active provider; every utterance still passes the
-   guardrails and falls back to template phrasing on any failure.
+**Fallback stays on.** If Foundry cannot be configured, `/health` reports why
+and the service runs on templates. If a model call fails or exceeds
+`PM_AGENT_TIMEOUT_S` (8 s), that utterance uses the template phrasing and the
+model is skipped for `PM_AGENT_COOLDOWN_S` (60 s), so a down model costs one
+timeout, not one per line. Every model output still passes the guardrails.
 
-Local smoke test of the same path (no Container Apps needed):
+Local smoke test of the same path:
 
 ```bash
-pip install -e ".[foundry]"
+pip install -e ".[agents,foundry]"
+az login
 PM_AGENT_BACKEND=foundry AZURE_AI_FOUNDRY_PROJECT_ENDPOINT=<ep> \
   AZURE_AI_FOUNDRY_MODEL=<model> uvicorn agents.server:app --port 8001
 ```
 
 ## 4. Microsoft Fabric (season history)
 
-The plan calls for loading the season into Fabric and querying it from the
-Historian. Until the curated 90-match season exists this is premature; the
-integration point is deliberately narrow - `mcp_history/store.py` reads
-match JSON. Options when the season lands, cheapest first:
-
-1. Keep baked-in JSON (zero config, works today, fine for a 90-match season).
-2. Export the season from Fabric to a storage account / OneLake endpoint and
-   point `PM_HISTORY_DIR` at a mounted download at container start.
-3. Query Fabric/Synapse directly in a `HistoryStore` subclass.
-
-The MCP tool contract (`history_query`) does not change in any option, so
-the agents and the front end are unaffected.
+All services read the real season from `parallel_match/data/season.json`
+(replayed deterministically), and precedent comes from one function,
+`history_for()`, shared with `/fork`. For Fabric, export flat tables with
+`parallel_match.season.export(season, out_dir)` (`matches.csv`,
+`events.jsonl`, `moments.csv`) and run the query in `docs/history-query.md`.
+The MCP tool contract (`history_query`) does not change if the source moves
+to Fabric later, so the agents and the front end are unaffected.
 
 ## 5. Rules of engagement
 
 - Never commit secrets: `.env` is git-ignored; production secrets go in
-  Container App secrets (`--secret-ref`) or Key Vault.
-- Synthetic data only - the guardrails enforce the no-real-names rule on
-  agent output; keep it true in every prompt and screen.
+  Container App secrets or Key Vault. Foundry and ACR use managed identity,
+  so there are no keys to store.
+- Synthetic data only: the guardrails enforce the no-real-names rule on agent
+  output; keep it true in every prompt and screen.

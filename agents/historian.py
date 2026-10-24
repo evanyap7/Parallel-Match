@@ -1,41 +1,68 @@
 """Historian agent: precedent from the league's own recorded season.
 
-The moment-finding and every number live in mcp_history/store.py. This agent
-receives the query result and phrases it. The same history query is exposed
-as an MCP tool (mcp_history/server.py); in the Microsoft Agent Framework
-deployment the agent holds it as an MCP tool (see docs/agents.md).
+Every number comes from `mcp_history.precedent.history_for` - the same
+precedent block POST /fork returns - so the Historian card and the simulation
+card can never cite two different counts. The same query is exposed as an MCP
+tool (`history_query` in mcp_history/server.py).
+
+Given a fork response as well, the Historian also states the simulation's
+estimate next to precedent's, and says plainly when the two disagree.
 """
 
 from __future__ import annotations
 
 from . import prompts
-from .facts import canonical
-from .laws import call_phrase
+from .facts import canonical, club_name
 from .provider import ChatProvider, TemplateProvider, phrase
 
 
-def build_facts(match: dict, event: dict, result) -> dict:
-    """Facts from a store.QueryResult (all numbers precomputed)."""
-    d = result.to_dict()
-    q, stats = d["query"], d["stats"]
-    change_beneficiary = q["team"] if q["call"] in ("no_foul", "onside") else q["opponent"]
+def _pct(x) -> int | None:
+    """Share as a whole percentage, rounding halves up (0.125 -> 13)."""
+    if not isinstance(x, (int, float)):
+        return None
+    v = x * 100
+    return int(v + 0.5) if v >= 0 else -int(-v + 0.5)
+
+
+def _points(x) -> int | None:
+    """Share difference as signed percentage points."""
+    return _pct(x)
+
+
+def build_facts(match: dict | None, event: dict | None, block: dict) -> dict:
+    given, not_given = block.get("when_given") or {}, block.get("when_not_given") or {}
     facts = {
-        "query": {**q, "team_name": q["team"], "opponent_name": q["opponent"]},
-        "stats": stats,
-        "criteria": d["criteria"],
-        "top": [c for c in d["comparables"][:3]],
-        "query_call_phrase": call_phrase(q.get("call")),
-        "beneficiary": change_beneficiary,
-        "n": stats.get("n", 0),
-        "n_other": stats.get("n_other_call", 0),
-        "n_same": stats.get("n_same_call", 0),
-        "share_other_pct": round(stats.get("share_other_call", 0) * 100),
-        "n_other_scored": stats.get("n_other_call_scored_within_15m", 0),
-        "avg_other": stats.get("avg_goals_by_team_next_15m_when_other_call"),
-        # keep the raw truth for grounding checks
-        "_truth": canonical(d),
+        "match_id": (match or {}).get("match_id"),
+        "event_id": (event or {}).get("id"),
+        "n": block.get("n", 0),
+        "description": block.get("description", ""),
+        "attacking_team": club_name(block.get("attacking_team", "")),
+        "given_n": given.get("n", 0),
+        "given_win_pct": _pct(given.get("win")),
+        "given_goal10_pct": _pct(given.get("goal_10")),
+        "not_given_n": not_given.get("n", 0),
+        "not_given_win_pct": _pct(not_given.get("win")),
+        "not_given_goal10_pct": _pct(not_given.get("goal_10")),
+        "history_shift_pts": _points(block.get("history_shift_att_win")),
+        "sim_shift_pts": _points(block.get("sim_shift_att_win")),
+        "agrees_with_simulation": block.get("agrees_with_simulation"),
+        "goal_window_min": 10,      # parallel_match.history.WINDOW_S // 60
+        "min_cases": 5,             # both groups need this many for an estimate
     }
+    for key in ("history_shift_pts", "sim_shift_pts"):
+        if facts[key] is not None:
+            facts[key + "_abs"] = abs(facts[key])
+    # The precedent block itself (same shape as /fork's history); the front
+    # end reads facts.history. Also the raw truth for grounding checks.
+    facts["history"] = block
+    facts["_truth"] = canonical(block)
     return facts
+
+
+def _signed(points: int) -> str:
+    if points == 0:
+        return "no change in"
+    return f"{abs(points)} points {'up' if points > 0 else 'down'} on"
 
 
 def template(facts: dict) -> str:
@@ -43,40 +70,50 @@ def template(facts: dict) -> str:
     if n == 0:
         return (
             "No comparable moment exists in the recorded season for this "
-            "decision family within the query tolerances, so there is no "
-            "precedent to cite either way."
+            "decision (same family, zone, score state and minute band), so "
+            "there is no precedent to cite either way."
         )
-    criteria = facts["criteria"]
-    if criteria["family"] == "contact":
-        tol = f"measured contact within {criteria['contact_tolerance']}"
-    else:
-        tol = f"an offside margin within {criteria['margin_tolerance_m']} m"
-    parts = [
-        f"Across the recorded season, {n} moment{'s' if n != 1 else ''} match this one: "
-        f"same decision family, {tol}, with pitch zone and clock as tie-breakers."
-    ]
-    parts.append(
-        f"In {facts['n_other']} of them the call went the other way "
-        f"({facts['share_other_pct']}%), and in {facts['n_other_scored']} of those "
-        f"{facts['n_other']} cases the team that benefited scored inside the next "
-        f"15 minutes."
-    )
-    top = facts["top"]
-    if top:
-        c = top[0]
-        goals = c["goals_by_team_next_15m"]
-        goals_text = (f"{goals} goal{'s' if goals != 1 else ''} by that team inside 15 minutes"
-                      if goals else "no goal by that team inside 15 minutes")
+    team = facts["attacking_team"]
+    desc = facts["description"]
+    parts = [f"Precedent: {desc}."
+             if desc else f"Precedent: {n} comparable moments in the recorded season."]
+    for label, k in (("given", "given"), ("not given", "not_given")):
+        cnt = facts[f"{k}_n"]
+        if cnt:
+            parts.append(
+                f"When the call was {label} ({cnt} case{'s' if cnt != 1 else ''}), "
+                f"the attacking side won {facts[f'{k}_win_pct']}% of those matches and "
+                f"scored within 10 minutes {facts[f'{k}_goal10_pct']}% of the time."
+            )
+        else:
+            parts.append(f"No comparable case has the call {label}.")
+    hist = facts["history_shift_pts"]
+    if hist is None:
         parts.append(
-            f"Closest precedent: {c['match_id']} at {c['min']}', {c['type']} for "
-            f"{c['team']} against {c['opponent']} - {call_phrase(c.get('call'))} "
-            f"({goals_text})."
+            "One side has fewer than 5 cases, so precedent gives no estimate "
+            "of what flipping this call does."
         )
+    else:
+        parts.append(
+            f"Precedent puts flipping this call at {_signed(hist)} the win share for {team}."
+        )
+    sim = facts["sim_shift_pts"]
+    if sim is not None:
+        parts.append(f"The paired simulation puts it at {_signed(sim)} the win share.")
+        agrees = facts["agrees_with_simulation"]
+        if agrees is False:
+            parts.append(
+                "These disagree: precedent compares different matches, while "
+                "the simulation replays this one with only the call changed."
+            )
+        elif agrees is True:
+            parts.append("The two estimates point the same way.")
     return " ".join(parts)
 
 
-def run(match: dict, event: dict, result, provider: ChatProvider | None = None) -> dict:
-    facts = build_facts(match, event, result)
+def run(match: dict | None, event: dict | None, block: dict,
+        provider: ChatProvider | None = None) -> dict:
+    facts = build_facts(match, event, block)
     text, fell_back = phrase(
         provider or TemplateProvider(),
         prompts.HISTORIAN,
@@ -84,9 +121,10 @@ def run(match: dict, event: dict, result, provider: ChatProvider | None = None) 
         template(facts),
     )
     return {
-        "event_id": event.get("id"),
-        "stats": facts["stats"],
-        "comparables": facts["top"],
+        "match_id": facts["match_id"],
+        "event_id": facts["event_id"],
+        "history": block,
+        "agrees_with_simulation": block.get("agrees_with_simulation"),
         "text": text,
         "facts": facts,
         "fell_back": fell_back,

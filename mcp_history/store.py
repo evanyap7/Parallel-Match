@@ -13,6 +13,11 @@ comparable when they belong to the same decision family:
 
 Zone and clock proximity add tie-break bonuses but never make two different
 families comparable.
+
+Since the switch to the real season, the services use this module only as an
+event index (`default_store`). Precedent numbers come from
+`mcp_history.precedent.history_for`, the same source as POST /fork, so the
+Historian and the simulation card can never show two different counts.
 """
 
 from __future__ import annotations
@@ -331,13 +336,18 @@ class HistoryStore:
         }
 
 
-def default_store(fixtures_dir: str = "fixtures",
-                  history_dir: str = "data/dev_season") -> HistoryStore:
-    """Store for local dev: the contract fixtures plus the generated dev
-    season. In deployment both are replaced by the real season export."""
-    sources = []
-    if os.path.isdir(fixtures_dir):
-        sources.append(fixtures_dir)
-    if os.path.isdir(history_dir) and os.path.abspath(history_dir) != os.path.abspath(fixtures_dir):
-        sources.append(history_dir)
-    return HistoryStore.load(*sources)
+_DEFAULT: HistoryStore | None = None
+
+
+def default_store() -> HistoryStore:
+    """Event index over the real 90-match season (built once per process).
+
+    Used for event and match lookups (Law Explainer, intervention parser).
+    Precedent numbers do NOT come from HistoryStore.query: they come from
+    mcp_history.precedent.history_for, the single source shared with /fork.
+    """
+    global _DEFAULT
+    if _DEFAULT is None:
+        from .season_source import season_matches
+        _DEFAULT = HistoryStore(season_matches())
+    return _DEFAULT
