@@ -1,0 +1,33 @@
+# Declarative form of `deploy/deploy.sh` (agents app only). If you prefer
+# YAML over the CLI flags:
+#   az containerapp create -n pm-agents -g $AZURE_RESOURCE_GROUP \
+#     --environment pm-env --yaml deploy/containerapps.agents.yaml
+# Build and push the image first (deploy.sh does this for you).
+location: ${AZURE_LOCATION}
+properties:
+  template:
+    containers:
+      - name: agents
+        image: ${AZURE_CONTAINER_REGISTRY}/the-home-dugout:latest
+        env:
+          - name: PM_SERVICE
+            value: api
+          - name: PM_AGENT_BACKEND
+            value: template          # foundry once the project is wired
+          - name: AZURE_AI_FOUNDRY_PROJECT_ENDPOINT
+            secretRef: foundry-endpoint
+        resources:
+          cpu: 0.5
+          memory: 1Gi
+    scale:
+      minReplicas: 0
+      maxReplicas: 2
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      targetPort: 8000
+      transport: auto
+    secrets:
+      - name: foundry-endpoint
+        value: "https://REPLACE-ME.services.ai.azure.com/api/projects/REPLACE-ME"
