@@ -23,8 +23,8 @@
 #   ./deploy/deploy.sh resume     # back to the judging sizes
 #   ./deploy/deploy.sh teardown   # delete the whole resource group (irreversible)
 #
-# Sized for an Azure for Students subscription ($100 credit): about $1.5 a day
-# with web, api and agents kept warm; see docs/deployment.md "Cost".
+# Sized for an Azure for Students subscription ($100 credit): about $2.5 a day
+# with all four apps kept warm; see docs/deployment.md "Cost".
 #
 # Required environment (see docs/deployment.md and .env.example):
 #   AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, AZURE_LOCATION,
@@ -211,10 +211,11 @@ upsert() {
   echo "$url"
 }
 
-# Judging sizes. Featured forks are precomputed; an uncached fork takes about
-# 9 s on 1 vCPU, and the agents service needs ~140 MB, so these are ample.
+# Judging sizes. Featured forks are precomputed (~1 s); an uncached fork took
+# ~25 s live on 1 vCPU, so the API gets 2 (rollouts run in a process pool).
+# The agents service needs ~140 MB.
 #        app             cpu   memory  min              max
-SIZE_API=(1.0 2Gi "$MIN_REPLICAS" 2)
+SIZE_API=(2.0 4Gi "$MIN_REPLICAS" 2)
 SIZE_AGENTS=(0.5 1Gi "$MIN_REPLICAS" 2)
 SIZE_WEB=(0.25 0.5Gi "$MIN_REPLICAS" 2)
 SIZE_MCP=(0.25 0.5Gi "$MIN_REPLICAS" 1)   # the Historian calls it on every card
