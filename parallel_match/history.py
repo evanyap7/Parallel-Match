@@ -8,10 +8,16 @@ whether the call was given, and compare the attacking team's results. The
 same query runs in Fabric over moments.csv (see docs/history-query.md).
 """
 
+import json
+from functools import lru_cache
+from pathlib import Path
+
 from .rules import PITCH_L, in_penalty_area
 
 BORDERLINE = 0.15  # |margin| for a comparable decision (contact units or metres)
 WINDOW_S = 600     # "next 10 minutes"
+ROWS_PATH = Path(__file__).parent / "data" / "history_rows.json"
+MIN_GROUP = 5      # rows needed on each side before quoting a history shift
 
 
 def _family_and_call(e: dict):
@@ -91,38 +97,86 @@ def _rates(rs: list[dict]) -> dict:
             "goal_10": round(sum(r["att_goal_10"] for r in rs) / n, 3)}
 
 
-def history_check(fork_result: dict, rec, rows: list[dict]) -> dict | None:
-    """Compare the fork's simulated shift with precedent. Returns None when the
-    change is not a flipped call, since the precedent here is about calls."""
-    if fork_result["change"].get("type") != "flip_call":
+# ---- the season table, single source for every precedent number ------------
+
+def build_season_rows() -> list[dict]:
+    from . import season
+
+    s = season.load()
+    rows = []
+    for m in s["matches"]:
+        rows.extend(moment_rows(season.record(s, m["match_id"])))
+    return rows
+
+
+def save_season_rows(rows: list[dict], path: Path = ROWS_PATH) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(rows, separators=(",", ":")))
+    return path
+
+
+@lru_cache(maxsize=1)
+def season_rows() -> list[dict]:
+    """Every contestable decision in the real season (cached on disk, rebuilt
+    by `python3 -m parallel_match season`)."""
+    if ROWS_PATH.exists():
+        return json.loads(ROWS_PATH.read_text())
+    return build_season_rows()
+
+
+# ---- precedent --------------------------------------------------------------
+
+def history_for(match_id: str, event_id: str, rows: list[dict] | None = None) -> dict | None:
+    """Precedent for one contestable moment in the real season. This is the
+    single source: POST /fork's `history` block and the MCP history tool both
+    come from here. None if the moment is not a contestable call."""
+    rows = season_rows() if rows is None else rows
+    target = next((r for r in rows if r["match_id"] == match_id and r["event_id"] == event_id), None)
+    if target is None:
         return None
-    mine = [r for r in moment_rows(rec) if r["event_id"] == fork_result["event_id"]]
-    if not mine:
-        return None
-    target = mine[0]
     comp = comparable(target, rows)
     given = _rates([r for r in comp if r["called"]])
     not_given = _rates([r for r in comp if not r["called"]])
 
-    # Effect of the flip on the attacking team's win share, from both sources.
-    shift = fork_result["outcome_shift"]
-    sim = shift["home"] if target["att_home"] else shift["away"]
+    # Effect of flipping this call on the attacking side's win share.
     hist = None
-    if given["n"] >= 5 and not_given["n"] >= 5:
+    if given["n"] >= MIN_GROUP and not_given["n"] >= MIN_GROUP:
         d = given["win"] - not_given["win"]
         hist = round(-d if target["called"] else d, 3)
-    agrees = None if hist is None else (abs(sim - hist) < 0.08 or (sim > 0) == (hist > 0))
     what = "fouls" if target["family"] == "foul" else "offside decisions"
     return {
+        "match_id": match_id,
+        "event_id": event_id,
         "n": len(comp),
         "description": (f"{len(comp)} comparable borderline {what} this season: "
                         f"{target['zone'].replace('_', ' ')}, same score state, similar minute"),
+        "family": target["family"],
+        "called": bool(target["called"]),
         "when_given": given,
         "when_not_given": not_given,
         "attacking_team": target["att_team"],
-        "sim_shift_att_win": round(sim, 3),
+        "attacking_is_home": bool(target["att_home"]),
         "history_shift_att_win": hist,
-        "agrees_with_simulation": agrees,
+        "enough_precedent": hist is not None,
         "note": "Precedent compares different matches, so it carries confounding; "
                 "the paired simulation isolates the call. Disagreement is shown, not hidden.",
     }
+
+
+def compare_with_simulation(hist: dict, outcome_shift: dict) -> dict:
+    """Add the simulated shift for the same side and whether the two agree."""
+    sim = outcome_shift["home"] if hist["attacking_is_home"] else outcome_shift["away"]
+    h = hist["history_shift_att_win"]
+    agrees = None if h is None else (abs(sim - h) < 0.08 or (sim > 0) == (h > 0))
+    return {**hist, "sim_shift_att_win": round(sim, 3), "agrees_with_simulation": agrees}
+
+
+def history_check(fork_result: dict, rows: list[dict] | None = None) -> dict | None:
+    """The `history` block of a fork response. None unless the change flipped
+    a call, since this precedent is about calls."""
+    if fork_result["change"].get("type") != "flip_call":
+        return None
+    hist = history_for(fork_result["match_id"], fork_result["event_id"], rows)
+    if hist is None:
+        return None
+    return compare_with_simulation(hist, fork_result["outcome_shift"])

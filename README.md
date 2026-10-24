@@ -11,6 +11,39 @@ the league's own history.
 names or music. The simulator is tuned so its per-match averages fall inside
 football-like ranges (see the realism report).
 
+## For judges
+
+**Live demo:** _link to be added once deployed_. Start with match **m052** (WES 2-1 COP),
+the borderline penalty at 56', and ask "what if that was not a penalty?".
+
+**What you are looking at is a model world.** Every match, club and player is generated.
+The alternate timeline is a simulation, not a prediction of real football, and every
+number on screen comes with its uncertainty.
+
+| Question | Answer, and where to check it |
+|---|---|
+| Is the data synthetic? | Yes. 10 invented clubs with tactical archetypes and generated players (`parallel_match/teams.py`); 90 simulated matches (`parallel_match/data/season.json`). No real data was used to build or tune anything beyond public, approximate per-match averages. |
+| Is it football-like? | Measured over 360 matches: 2.78 goals, 27.4 shots, 82% pass accuracy, 24.4 fouls, 3.2 yellows, 10.3 corners, 42% home wins, 24% draws per match. All 16 metrics fall inside approximate top-flight ranges (`reports/realism_v1.md`). The ranges are a sanity band, not measured truth. |
+| How is "what if" computed? | Replay the seeded match to the moment, apply one change, then play hundreds of paired rollouts: original and altered branches share random numbers, so the difference is the change, not luck. The result carries a 95% interval (`parallel_match/fork.py`). |
+| Is there a second opinion? | Yes. Precedent from the season itself: comparable borderline calls, split by whether the call was given (`parallel_match/history.py`). When it disagrees with the simulation, the response says so. One function, `history_for()`, feeds both the API and the MCP tool. |
+| How fast? | Measured on a 10-core laptop: a full match simulates in about 60 ms; 200 rollouts take 2 to 4 s on 8 workers; featured moments of the 5 story matches are precomputed at 500 rollouts and return in about 60 ms. |
+| Do the agents invent numbers? | No. All numbers and moment-finding stay in plain code; agents only phrase them, and guardrails reject output with numbers not in the facts or wording that judges officials (`agents/guardrails.py`). |
+| Is it neutral about officials? | Decisions are explained against the Law of the Game they fall under, with the measured margin. Nothing says a referee or player "got it wrong". |
+
+**Microsoft stack**
+
+| Service | Used for | Where | Status |
+|---|---|---|---|
+| Microsoft Agent Framework + Azure AI Foundry | Narrator, Law Explainer, Historian, Intervention Parser | `agents/`, `docs/agents.md` | Built; template phrasing by default, Foundry with `PM_AGENT_BACKEND=foundry` |
+| MCP | Season history query as tools (`history_query`, `season_summary`) | `mcp_history/` | Built |
+| Azure Container Apps | Simulator API, agents API, MCP server, front end | `Dockerfile`, `deploy/`, `docs/deployment.md` | Pending deployment |
+| Microsoft Fabric | Season tables and the precedent query in SQL | `python3 -m parallel_match export`, `docs/history-query.md` | Tables and SQL ready; load pending |
+
+**Known limits.** Positions are derived from formations, not tracked, so this is an
+event-level model, not physics. Team strength is not yet a feature of the live
+win-probability curve. Precedent compares different matches, so it carries confounding;
+the paired simulation is the cleaner estimate of a single call's effect.
+
 ## Quick start
 
 Python 3.11+, no dependencies.

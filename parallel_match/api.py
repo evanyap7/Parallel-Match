@@ -43,14 +43,6 @@ def _record(match_id: str):
     return season.record(_season(), match_id)
 
 
-@lru_cache(maxsize=1)
-def _history_rows() -> list[dict]:
-    rows = []
-    for m in _season()["matches"]:
-        rows.extend(history.moment_rows(_record(m["match_id"])))
-    return rows
-
-
 def change_key(change: dict) -> str:
     # flip_call is fully determined by the moment; the agents' parser adds the
     # target call ("no_foul", "onside"), which must not split the cache.
@@ -70,6 +62,8 @@ def run_fork(match_id: str, event_id: str | None, change: dict, rollouts: int,
         cached = json.loads(path.read_text())
         if cached["rollouts"] >= rollouts:
             cached["cached"] = True
+            # Precedent always comes fresh from the single source (history_for).
+            cached["history"] = history.history_check(cached)
             return cached
     m = _fixture(match_id)
     clubs = build_league()
@@ -77,7 +71,7 @@ def run_fork(match_id: str, event_id: str | None, change: dict, rollouts: int,
     rec = _record(match_id)
     result = fork(home, away, m["seed"], match_id, event_id, change,
                   rollouts=rollouts, record=rec)
-    result["history"] = history.history_check(result, rec, _history_rows())
+    result["history"] = history.history_check(result)
     result["cached"] = False
     return result
 
@@ -122,6 +116,16 @@ def match(match_id: str):
 @app.get("/moments/{match_id}")
 def match_moments(match_id: str):
     return moments(_record(match_id))
+
+
+@app.get("/history/{match_id}/{event_id}")
+def match_history(match_id: str, event_id: str):
+    """Precedent for one moment (same numbers as the fork's history block)."""
+    _fixture(match_id)
+    h = history.history_for(match_id, event_id)
+    if h is None:
+        raise HTTPException(404, f"{event_id!r} is not a contestable call in {match_id}")
+    return h
 
 
 @app.post("/fork")

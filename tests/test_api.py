@@ -40,6 +40,26 @@ class ApiTest(unittest.TestCase):
                                     "change": {"type": "teleport"}, "rollouts": 10})
         self.assertEqual(bad.status_code, 422)
 
+    def test_one_precedent_source(self):
+        """The fork's history block, GET /history and history_for() agree,
+        live and cached."""
+        from parallel_match.history import history_for
+
+        c = self.client
+        story = next(m for m in c.get("/matches").json() if m["story"] == "penalty_drama")
+        mid = story["match_id"]
+        pen = next(e for e in c.get(f"/match/{mid}").json()["events"]
+                   if e["type"] == "foul" and e["call"] == "penalty")
+        direct = history_for(mid, pen["id"])
+        via_get = c.get(f"/history/{mid}/{pen['id']}").json()
+        self.assertEqual(via_get, direct)
+        for rollouts in (10, 500):  # 10 runs live; 500 may come from the precomputed cache
+            body = c.post("/fork", json={"match_id": mid, "event_id": pen["id"],
+                                         "change": {"type": "flip_call"}, "rollouts": rollouts}).json()
+            for key, value in direct.items():
+                self.assertEqual(body["history"][key], value, key)
+        self.assertEqual(c.get(f"/history/{mid}/{mid}-9999").status_code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()

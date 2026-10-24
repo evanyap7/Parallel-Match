@@ -186,6 +186,22 @@ def record(season: dict, match_id: str) -> MatchRecord:
     raise KeyError(match_id)
 
 
+def match_dict(season: dict, match_id: str) -> dict:
+    """One season match as a JSON-ready dict (events plus round and story)."""
+    d = record(season, match_id).to_dict()
+    fixture = next(m for m in season["matches"] if m["match_id"] == match_id)
+    d["round"] = fixture["round"]
+    d["story"] = fixture.get("story")
+    return d
+
+
+def match_dicts(season: dict | None = None) -> list[dict]:
+    """All 90 matches as dicts, e.g. for mcp_history.HistoryStore(match_dicts()).
+    Regenerated from seeds, about 6 s for the season."""
+    season = season or load()
+    return [match_dict(season, m["match_id"]) for m in season["matches"]]
+
+
 def standings(season: dict) -> list[dict]:
     table = {}
     for m in season["matches"]:

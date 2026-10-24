@@ -65,14 +65,31 @@ Until it lands, `mcp_history` keeps returning its current dev-season result.
 
 ### Evan: backend and data (owns the numbers)
 
-1. [ ] `history_for()` as above, on the real season. Make it the single precedent
-   source, so the `/fork` `history` block and the MCP tool give the same number.
-2. [ ] Make the season easy to load for the agents and MCP services (no dependency on
-   `data/dev_season`). Rerun precompute if any simulator output changes.
-3. [ ] Backend bug bash: every change type on all 5 story matches through the API;
-   every featured moment returns `cached: true`.
-4. [ ] Final README and judge notes: what is synthetic, realism report, measured fork
-   speed, the "model world" caveat.
+1. [x] `history_for()` as above, on the real season, is the single precedent source:
+   the `/fork` `history` block (live and cached), the new `GET /history/{match}/{event}`
+   and the function itself return the same numbers (tested). Backed by
+   `parallel_match/data/history_rows.json` (3,221 decisions, loads in under 10 ms).
+2. [x] Season loader for the agents and MCP: `season.match_dicts()` returns all 90
+   matches in the event schema plus `round` and `story`; it loads straight into
+   `HistoryStore` (tested). No simulator output changed, so the precomputed forks stand.
+3. [x] Backend bug bash (`.venv/bin/python -W ignore -m tests.bugbash`): 82 API forks
+   over every change type on the 5 story matches, invalid changes refused, 60/60
+   featured moments served from cache, 0 problems.
+4. [x] README "For judges" section: synthetic data, measured realism and speed, model
+   world caveat, Microsoft stack table (update its Status column as things go live).
+
+**For Jiawei (task 5), the switch is two lines:**
+
+```python
+from parallel_match.season import match_dicts
+from parallel_match.history import history_for   # the precedent number to show
+
+store = HistoryStore(match_dicts())               # replaces default_store(..., "data/dev_season")
+```
+
+Use `history_for(match_id, event_id)` for the headline precedent number so the
+Historian and the fork's `history` block never disagree; keep `HistoryStore.query`
+for the list of comparable moments if you want to show examples.
 
 ### Jiawei: Microsoft stack and deployment
 
