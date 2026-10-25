@@ -87,4 +87,4 @@ https://pm-history-mcp.agreeableflower-13af161d.japaneast.azurecontainerapps.io/
 
 - Live demo: https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io
 - Video: <YouTube URL>
-- Repo: https://github.com/evanyap7/the-home-dugout
+- Repo: https://github.com/evanyap7/the-parallel-match
