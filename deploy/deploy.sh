@@ -17,6 +17,7 @@
 #   ./deploy/deploy.sh web        # front end only (reads the live api/agents URLs)
 #   ./deploy/deploy.sh hello      # smoke-test app
 #   ./deploy/deploy.sh urls       # print the HTTPS URLs of everything deployed
+#   ./deploy/deploy.sh status     # live sizes, replicas, releases, cost to 10 Nov, fork timing
 #   ./deploy/deploy.sh foundry    # managed identity + Foundry role on pm-agents
 #   ./deploy/deploy.sh foundry-create   # Foundry resource, project, model deployment
 #   ./deploy/deploy.sh pause      # scale everything to zero (after judging)
@@ -223,7 +224,8 @@ SIZE_MCP=(0.25 0.5Gi "$MIN_REPLICAS" 1)   # the Historian calls it on every card
 
 deploy_api() {          # simulator API: forks run rollouts in a process pool
   build "$API_IMAGE" Dockerfile || return 1
-  upsert pm-api "$API_IMAGE" 8000 "${SIZE_API[@]}"
+  # One rollout worker per vCPU (see parallel_match/fork.py default_workers).
+  upsert pm-api "$API_IMAGE" 8000 "${SIZE_API[@]}" PM_FORK_WORKERS="${SIZE_API[0]%.*}"
 }
 
 deploy_agents() {
@@ -361,6 +363,48 @@ scale_all() {
   done
 }
 
+# Hosting check for judging: what is actually live, what it costs per day,
+# whether the credit covers it to the end of judging, and how long a fresh
+# (not precomputed) fork takes. Prints a block to paste into docs.
+status() {
+  local judging_end="2026-11-11T07:59:00Z"   # 10 Nov 11:59 pm PT
+  local now days
+  now="$(date -u +%s)"
+  days="$(python3 -c "import datetime as d;e=d.datetime.fromisoformat('$judging_end'.replace('Z','+00:00'));print(round((e.timestamp()-$now)/86400,1))")"
+  echo "Hosting check, $(date -u '+%Y-%m-%d %H:%M UTC')"
+  printf '%-16s %5s %7s %4s %4s  %s\n' app cpu memory min max release
+  local total_cpu=0 total_mem=0 app row cpu mem min max rel
+  for app in pm-web pm-api pm-agents pm-history-mcp pm-hello; do
+    exists "$app" || continue
+    row="$(az containerapp show -n "$app" -g "$RESOURCE_GROUP" --query \
+      "[properties.template.containers[0].resources.cpu, properties.template.containers[0].resources.memory, properties.template.scale.minReplicas, properties.template.scale.maxReplicas, properties.template.containers[0].env[?name=='PM_RELEASE'].value | [0]]" -o tsv | tr '\n' ' ')"
+    read -r cpu mem min max rel <<< "$row"
+    printf '%-16s %5s %7s %4s %4s  %s\n' "$app" "$cpu" "$mem" "${min:-0}" "$max" "${rel:-}"
+    if [[ "${min:-0}" -ge 1 ]]; then
+      total_cpu="$(python3 -c "print($total_cpu+$cpu)")"
+      total_mem="$(python3 -c "print($total_mem+${mem%Gi})")"
+    fi
+  done
+  # Idle (warm, no traffic) consumption rates, USD per second, plus Basic ACR.
+  python3 - "$total_cpu" "$total_mem" "$days" <<'PY'
+import sys
+cpu, mem, days = map(float, sys.argv[1:])
+per_day = (cpu * 0.000003 + mem * 0.000003) * 86400 + 0.167
+print(f"warm: {cpu:g} vCPU, {mem:g} GiB -> about ${per_day:.2f}/day; {days:g} days to 10 Nov 11:59 pm PT -> about ${per_day*days:.0f}")
+PY
+  echo "credit balance: https://www.microsoftazuresponsorships.com/balance"
+  local api; api="$(fqdn pm-api)"
+  if [[ -n "$api" ]]; then
+    local t
+    t="$(curl -s -o /dev/null -w '%{time_total}' -X POST "https://$api/fork" -H 'content-type: application/json' \
+      -d '{"match_id":"m001","event_id":"m001-0012","change":{"type":"flip_call"}}')"
+    echo "fresh fork (m001-0012, not precomputed): ${t}s"
+    t="$(curl -s -o /dev/null -w '%{time_total}' -X POST "https://$api/fork" -H 'content-type: application/json' \
+      -d '{"match_id":"m052","event_id":"m052-0715","change":{"type":"flip_call"}}')"
+    echo "featured fork (m052-0715, precomputed): ${t}s"
+  fi
+}
+
 urls() {
   for app in pm-web pm-api pm-agents pm-history-mcp pm-hello; do
     local f; f="$(fqdn "$app")"
@@ -387,6 +431,7 @@ case "$WHAT" in
   web)     prepare; u=$(deploy_web);    echo "web: $u" ;;
   hello)   prepare; u=$(deploy_hello);  echo "hello: $u" ;;
   urls)    urls ;;
+  status)  status ;;
   all)
     setup; docker_login
     u=$(deploy_api);    echo "api: $u"
@@ -397,5 +442,5 @@ case "$WHAT" in
     echo
     echo "Smoke test:  ./deploy/smoke.sh"
     ;;
-  *) echo "unknown target: $WHAT (setup|all|api|agents|mcp|web|hello|urls|foundry|foundry-create|pause|resume|teardown)" >&2; exit 2 ;;
+  *) echo "unknown target: $WHAT (setup|all|api|agents|mcp|web|hello|urls|status|foundry|foundry-create|pause|resume|teardown)" >&2; exit 2 ;;
 esac

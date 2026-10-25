@@ -100,17 +100,23 @@ for the list of comparable moments if you want to show examples.
 2. [x] Add a target for the simulator API (root `Dockerfile`, port 8000). Deploy all
    three services and post the HTTPS URLs in chat. *(Live: web, api, agents,
    MCP on Container Apps; `./deploy/deploy.sh urls`.)*
-3. [ ] Foundry on: `PM_AGENT_BACKEND=foundry` with a managed identity, template
-   fallback kept for when the model is down. *(Code and `deploy.sh
-   foundry-create` ready; switching on now.)*
+3. [x] Foundry on: `PM_AGENT_BACKEND=foundry` with a managed identity, template
+   fallback kept for when the model is down. *(Live 24 Oct: `gpt-4.1-mini` on
+   Foundry, user-assigned identity with Cognitive Services roles; `/health`
+   shows `agent-framework/foundry` and no model error.)*
 4. [x] Narrator: use `original.outcome` and `alternate.outcome` (rollout shares), not
    the final win-probability point, which gives "0% instead of 0%".
 5. [x] Switch the Historian and MCP to `history_for()` and retire `data/dev_season`.
 6. [x] Host the front end (`dist/` as a Static Web App or a Container App) with
    `VITE_API_BASE_URL` set. This is the link the judges open. *(pm-web, nginx
    proxies `/agents`.)*
-7. [ ] pm-api on 2 vCPU (uncached forks ~25 s on 1). Keep every app at min 1
-   replica through 10 Nov; ~$45 of the $100 credit.
+7. [x] pm-api on 2 vCPU (uncached forks ~25 s on 1). Keep every app at min 1
+   replica through 10 Nov; ~$45 of the $100 credit. *(Live check 25 Oct with
+   `./deploy/deploy.sh status`: pm-api 2.0 vCPU / 4 GiB, every app min 1,
+   about $44 to 10 Nov; output in `docs/deployment.md`. Fresh forks used one
+   worker; `PM_FORK_WORKERS=2` fixes that on the next `deploy.sh api`.)*
+10. [x] Agent panels fast: parallel Narrator and answer cache (replaces PR #9).
+   *(Live 25 Oct: agents and web deployed, smoke test all ok.)*
 8. [ ] Fabric: load the season and run the precedent query (`docs/fabric.md`),
    screenshot, or tell the team it is dropped.
 9. [ ] `docs/SUBMISSION.md` final (links in; category and Copilot/Fabric
