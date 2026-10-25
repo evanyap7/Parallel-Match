@@ -17,7 +17,7 @@ import os
 from mcp_history.precedent import history_for
 
 MCP_URL = os.environ.get("PM_HISTORY_MCP_URL", "").strip()
-MCP_TIMEOUT_S = float(os.environ.get("PM_HISTORY_MCP_TIMEOUT_S", "20"))
+MCP_TIMEOUT_S = float(os.environ.get("PM_HISTORY_MCP_TIMEOUT_S", "8"))
 
 _last_error: str | None = None
 
