@@ -1661,3 +1661,57 @@ table.data .muted {
 .ribbon-line span {
   white-space: nowrap;
 }
+
+/* ---- language gate ---- */
+.lang-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px var(--gutter);
+}
+.lang-gate section {
+  width: min(720px, 100%);
+  text-align: center;
+}
+.gate-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+.lang-gate h1 {
+  font-size: clamp(30px, 6vw, 44px);
+  margin: 0 0 8px;
+}
+.gate-sub,
+.gate-note {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.lang-gate ul {
+  list-style: none;
+  margin: 28px 0 20px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.lang-gate li button {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  font-size: 16px;
+  font-weight: 500;
+}
+.lang-gate li button:hover,
+.lang-gate li button.suggested {
+  border-color: var(--text);
+}
+.lang-gate li button:hover {
+  background: var(--surface-active);
+}

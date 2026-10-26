@@ -10,6 +10,8 @@ export interface AgentText {
   text: string;
   facts: Obj;
   fell_back: boolean;
+  /** True when the text is in the requested language; false means English was served. */
+  translated?: boolean;
 }
 export interface Narration {
   match_id: string;
@@ -17,6 +19,7 @@ export interface Narration {
   script: { timeline: string; text: string }[];
   facts: Obj;
   fell_back: boolean;
+  translated?: boolean;
 }
 export async function agentPost(
   path: string,
@@ -55,9 +58,10 @@ export async function explain(
   match_id: string,
   event_id: string,
   signal: AbortSignal,
+  lang = "en",
 ) {
   return validateText(
-    await agentPost("/explain", { match_id, event_id }, signal),
+    await agentPost("/explain", { match_id, event_id, lang }, signal),
     event_id,
   );
 }
@@ -65,15 +69,17 @@ export async function precedents(
   match_id: string,
   event_id: string,
   signal: AbortSignal,
+  lang = "en",
 ) {
   return validateText(
-    await agentPost("/precedents", { match_id, event_id }, signal),
+    await agentPost("/precedents", { match_id, event_id, lang }, signal),
     event_id,
   );
 }
 // The current agents reader expects a request envelope; preserve the engine's raw fields.
-export function narratorBody(result: ForkResult) {
+export function narratorBody(result: ForkResult, lang = "en") {
   return {
+    lang,
     match_id: result.match_id,
     fork_response: {
       ...result,
@@ -88,8 +94,9 @@ export function narratorBody(result: ForkResult) {
 export async function narrate(
   result: ForkResult,
   signal: AbortSignal,
+  lang = "en",
 ): Promise<Narration> {
-  const value = await agentPost("/narrate", narratorBody(result), signal);
+  const value = await agentPost("/narrate", narratorBody(result, lang), signal);
   if (
     !obj(value) ||
     value.match_id !== result.match_id ||
@@ -124,8 +131,9 @@ export async function parseWhatIf(
   text: string,
   request: { match_id: string; event_id: string },
   signal: AbortSignal,
+  lang = "en",
 ) {
-  const value = await agentPost("/parse", { ...request, text }, signal);
+  const value = await agentPost("/parse", { ...request, text, lang }, signal);
   if (!obj(value) || typeof value.ok !== "boolean")
     throw new Error("Invalid parser response.");
   if (!value.ok)

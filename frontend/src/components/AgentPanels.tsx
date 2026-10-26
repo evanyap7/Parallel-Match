@@ -5,7 +5,7 @@ import { useI18n } from "../i18n";
 import type { ForkResult, MatchEvent } from "../types";
 
 function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [state, setState] = useState<{ data?: T; error?: string }>({});
   const [retry, setRetry] = useState(0);
   useEffect(() => {
@@ -22,13 +22,15 @@ function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
           });
       });
     return () => ctrl.abort();
-    // Components are keyed by their complete request identity in App.
-  }, [retry]);
+    // Components are keyed by their complete request identity in App;
+    // the language is part of the request too.
+  }, [retry, lang]);
   return { ...state, retry: () => setRetry((n) => n + 1) };
 }
-function EnglishNote() {
+/** Shown only when the service could not give the text in the chosen language. */
+function EnglishNote({ translated }: { translated?: boolean }) {
   const { lang, t } = useI18n();
-  return lang === "en" ? null : (
+  return lang === "en" || translated !== false ? null : (
     <p className="small muted">{t("agent.englishNote")}</p>
   );
 }
@@ -77,8 +79,8 @@ export function AgentLaw({
   event: MatchEvent;
   open?: boolean;
 }) {
-  const { t } = useI18n();
-  const state = useAgent((signal) => explain(matchId, event.id, signal));
+  const { t, lang } = useI18n();
+  const state = useAgent((signal) => explain(matchId, event.id, signal, lang));
   return (
     <section className="agent-law" aria-label={t("agent.law")}>
       <h4>{t("agent.law")}</h4>
@@ -89,7 +91,7 @@ export function AgentLaw({
             <p>{state.data.text}</p>
           </details>
           <Source data={state.data} />
-          <EnglishNote />
+          <EnglishNote translated={state.data.translated} />
         </>
       ) : (
         <AgentState {...state} />
@@ -104,8 +106,8 @@ export function AgentNarrative({
   result: ForkResult;
   variant?: "fan" | "analyst";
 }) {
-  const { t } = useI18n();
-  const state = useAgent((signal) => narrate(result, signal));
+  const { t, lang } = useI18n();
+  const state = useAgent((signal) => narrate(result, signal, lang));
   return (
     <section
       className={`agent-narrative ${variant}`}
@@ -134,7 +136,7 @@ export function AgentNarrative({
       ) : (
         <AgentState {...state} />
       )}
-      {state.data && <EnglishNote />}
+      {state.data && <EnglishNote translated={state.data.translated} />}
       {variant === "analyst" && (
         <p className="small muted">{t("agent.fullTimeNote")}</p>
       )}
@@ -154,9 +156,9 @@ export function historyAgreement(
   return result.history?.agrees_with_simulation ?? null;
 }
 export function AgentHistory({ result }: { result: ForkResult }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const state = useAgent((signal) =>
-    precedents(result.match_id, result.event_id, signal),
+    precedents(result.match_id, result.event_id, signal, lang),
   );
   const canonical = state.data?.facts.history;
   const aligned =
@@ -180,7 +182,7 @@ export function AgentHistory({ result }: { result: ForkResult }) {
               {!aligned && t("agent.usesSim")}
             </p>
           )}
-          <EnglishNote />
+          <EnglishNote translated={state.data.translated} />
         </>
       ) : (
         <AgentState {...state} />

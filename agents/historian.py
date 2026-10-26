@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from . import prompts
 from .facts import canonical, club_name
-from .provider import ChatProvider, TemplateProvider, phrase
+from .provider import ChatProvider, TemplateProvider, phrase_in
 
 
 def _pct(x) -> int | None:
@@ -112,13 +112,14 @@ def template(facts: dict) -> str:
 
 
 def run(match: dict | None, event: dict | None, block: dict,
-        provider: ChatProvider | None = None) -> dict:
+        provider: ChatProvider | None = None, lang: str = "en") -> dict:
     facts = build_facts(match, event, block)
-    text, fell_back = phrase(
+    text, fell_back, translated = phrase_in(
         provider or TemplateProvider(),
         prompts.HISTORIAN,
         facts,
         template(facts),
+        lang=lang,
     )
     return {
         "match_id": facts["match_id"],
@@ -128,4 +129,6 @@ def run(match: dict | None, event: dict | None, block: dict,
         "text": text,
         "facts": facts,
         "fell_back": fell_back,
+        "lang": lang,
+        "translated": translated,
     }

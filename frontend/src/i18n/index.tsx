@@ -81,14 +81,18 @@ export function rich(
   });
 }
 
-/** Saved choice, else the browser's language, else English. */
-export function initialLang(): string {
+/** The language the fan picked on an earlier visit, if any. */
+export function savedLang(): string | null {
   try {
-    const saved = known(localStorage.getItem(STORAGE_KEY));
-    if (saved) return saved.code;
+    return known(localStorage.getItem(STORAGE_KEY))?.code ?? null;
   } catch {
-    // storage can be blocked; fall through to the browser language
+    return null; // storage can be blocked: ask again
   }
+}
+
+/** The browser's language when we offer it, else English. Only a suggestion:
+    the fan must still choose before entering. */
+export function suggestedLang(): string {
   for (const tag of navigator.languages ?? [navigator.language]) {
     const hit = known(tag?.toLowerCase().split("-")[0]);
     if (hit) return hit.code;
@@ -98,6 +102,8 @@ export function initialLang(): string {
 
 interface I18n {
   lang: string;
+  /** False until the fan has picked a language (the gate blocks the app). */
+  chosen: boolean;
   dir: "ltr" | "rtl";
   t: T;
   r: (key: Key, params: Record<string, ReactNode>) => ReactNode[];
@@ -106,6 +112,7 @@ interface I18n {
 
 const Context = createContext<I18n>({
   lang: "en",
+  chosen: true,
   dir: "ltr",
   t: tEn,
   r: (key, params) => rich(en, key, params),
@@ -115,7 +122,8 @@ const Context = createContext<I18n>({
 export const useI18n = () => useContext(Context);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState(initialLang);
+  const [lang, setLangState] = useState(() => savedLang() ?? suggestedLang());
+  const [chosen, setChosen] = useState(() => savedLang() !== null);
   const [messages, setMessages] = useState<Messages>(en);
   const locale = known(lang) ?? LOCALES[0];
 
@@ -139,6 +147,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     const next = known(code);
     if (!next) return;
     setLangState(next.code);
+    setChosen(true);
     try {
       localStorage.setItem(STORAGE_KEY, next.code);
     } catch {
@@ -149,12 +158,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<I18n>(
     () => ({
       lang: locale.code,
+      chosen,
       dir: locale.dir,
       t: makeT(messages),
       r: (key, params) => rich(messages, key, params),
       setLang,
     }),
-    [locale, messages, setLang],
+    [locale, messages, chosen, setLang],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

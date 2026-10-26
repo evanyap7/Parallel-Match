@@ -11,7 +11,7 @@ from __future__ import annotations
 from . import prompts
 from .facts import moment_facts
 from .laws import call_phrase, law_text
-from .provider import ChatProvider, TemplateProvider, phrase
+from .provider import ChatProvider, TemplateProvider, phrase_in
 
 
 def build_facts(match: dict, event: dict) -> dict:
@@ -59,13 +59,15 @@ def template(facts: dict) -> str:
     return " ".join(parts)
 
 
-def run(match: dict, event: dict, provider: ChatProvider | None = None) -> dict:
+def run(match: dict, event: dict, provider: ChatProvider | None = None,
+        lang: str = "en") -> dict:
     facts = build_facts(match, event)
-    text, fell_back = phrase(
+    text, fell_back, translated = phrase_in(
         provider or TemplateProvider(),
         prompts.LAW_EXPLAINER,
         facts,
         template(facts),
+        lang=lang,
     )
     return {
         "event_id": event.get("id"),
@@ -73,4 +75,6 @@ def run(match: dict, event: dict, provider: ChatProvider | None = None) -> dict:
         "text": text,
         "facts": facts,
         "fell_back": fell_back,
+        "lang": lang,
+        "translated": translated,
     }

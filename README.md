@@ -33,7 +33,7 @@ number on screen comes with its uncertainty.
 **Languages.** The interface is available in 18 languages across the Americas, Europe and Asia
 (language menu in the top bar; Arabic is laid out right to left). Catalogs live in
 `frontend/src/i18n/`, and a test fails if any language misses a key or breaks a placeholder.
-Agent text stays English because the neutrality guardrails are English-only.
+The fan picks a language before entering, and the agents answer in it (see `docs/agents.md`).
 
 **Microsoft stack**
 

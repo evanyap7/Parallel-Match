@@ -20,7 +20,8 @@ import json
 import os
 from typing import Protocol
 
-from .guardrails import check_output
+from . import translate
+from .guardrails import check_output, neutrality_issues, grounding_issues
 
 
 class ChatProvider(Protocol):
@@ -197,15 +198,28 @@ def reset_provider() -> None:
 
 def phrase(provider: ChatProvider | None, system: str, facts: dict,
            template_text: str, polish: bool = True) -> tuple[str, bool]:
-    """Run one agent utterance through the guardrail pipeline.
+    """English utterance through the guardrail pipeline: (text, fell_back)."""
+    text, fell_back, _translated = phrase_in(provider, system, facts, template_text, polish)
+    return text, fell_back
 
-    Returns (text, fell_back). The template text is the deterministic
-    phrasing of the facts; a model provider, when configured, rewrites it
-    for style. If the rewrite fails guardrails (or errors), the template
-    text is returned instead.
+
+def phrase_in(provider: ChatProvider | None, system: str, facts: dict,
+              template_text: str, polish: bool = True,
+              lang: str = "en") -> tuple[str, bool, bool]:
+    """Run one agent utterance through the guardrail pipeline, in `lang`.
+
+    Returns (text, fell_back, translated). The template text is the
+    deterministic English phrasing of the facts. A model provider, when
+    configured, rewrites it for style, or writes it in the fan's language.
+    If the result fails the guardrails (or the model errors) the English
+    template text is returned instead, with translated False. Without a
+    model, non-English requests are answered in English.
     """
+    lang = translate.norm_lang(lang)
     if provider is None or isinstance(provider, TemplateProvider) or not polish:
-        return template_text, False
+        return template_text, False, False
+    if lang != "en":
+        system = f"{system}\n\n{translate.instruction(lang)}"
     user = (
         "Facts (JSON, the only source of truth):\n"
         + json.dumps(facts, sort_keys=True, default=str)
@@ -216,7 +230,14 @@ def phrase(provider: ChatProvider | None, system: str, facts: dict,
     try:
         text = provider.complete(system, user)
     except Exception:
-        return template_text, True
-    if check_output(text, facts):
-        return template_text, True
-    return text, False
+        return template_text, True, False
+    if lang == "en":
+        if check_output(text, facts):
+            return template_text, True, False
+        return text, False, False
+    text = translate.normalise_digits(text).strip()
+    if (neutrality_issues(text) or grounding_issues(text, facts)
+            or translate.language_issues(text, lang)
+            or not translate.looks_translated(text, template_text, lang)):
+        return template_text, True, False
+    return text, False, True

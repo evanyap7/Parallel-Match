@@ -11,7 +11,7 @@ from __future__ import annotations
 from . import prompts
 from .facts import club_name, fork_facts
 from .laws import CALL_PHRASES
-from .provider import ChatProvider, TemplateProvider, phrase
+from .provider import ChatProvider, TemplateProvider, phrase_in
 
 
 def _score(facts: dict, key: str) -> str:
@@ -104,25 +104,29 @@ def template_script(facts: dict) -> list[dict]:
 
 
 def run(fork_response: dict, match: dict | None = None,
-        provider: ChatProvider | None = None) -> dict:
+        provider: ChatProvider | None = None, lang: str = "en") -> dict:
     facts = build_facts(fork_response, match)
     provider = provider or TemplateProvider()
     lines = template_script(facts)
     # The four lines are independent: phrase them concurrently, so a model
     # backend costs one round trip, not four in a row.
     if isinstance(provider, TemplateProvider):
-        results = [phrase(provider, prompts.NARRATOR, facts, line["text"]) for line in lines]
+        results = [phrase_in(provider, prompts.NARRATOR, facts, line["text"], lang=lang)
+                   for line in lines]
     else:
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=len(lines)) as pool:
             results = list(pool.map(
-                lambda line: phrase(provider, prompts.NARRATOR, facts, line["text"]), lines))
+                lambda line: phrase_in(provider, prompts.NARRATOR, facts, line["text"], lang=lang),
+                lines))
     script = [{"timeline": line["timeline"], "text": text}
-              for line, (text, _fb) in zip(lines, results)]
+              for line, (text, _fb, _tr) in zip(lines, results)]
     return {
         "match_id": facts["match_id"],
         "event_id": facts["event_id"],
         "script": script,
         "facts": facts,
-        "fell_back": any(fb for _text, fb in results),
+        "fell_back": any(fb for _text, fb, _tr in results),
+        "lang": lang,
+        "translated": all(tr for _text, _fb, tr in results),
     }

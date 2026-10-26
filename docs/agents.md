@@ -128,3 +128,27 @@ The verdict states rollout shares from the fork point
 rollouts from this moment: Westfield Rangers win 15% of finishes instead of
 29%". It no longer uses the final win-probability point, which is ~0 or ~1 at
 full time.
+
+## Languages
+
+`/narrate`, `/explain`, `/precedents` and `/parse` accept `lang`, one of the 18
+interface codes (`en es pt fr de it nl pl ru tr ar hi id th vi zh ja ko`);
+anything else means English. Responses carry `lang` and `translated`.
+
+- The deterministic English reference text is still built from the facts. With
+  a model backend, the model writes it in the requested language
+  (`agents/translate.py`, `provider.phrase_in`).
+- The result is accepted only if every number is in the fact bundle (native
+  digits and decimal commas are normalised first), it passes the English
+  neutrality screen plus a per-language list of judging wording, and it is
+  really in that language (script check, or differs from the reference).
+  Otherwise the English text is returned with `translated: false` and the UI
+  shows a note. The template provider always answers in English.
+- Answers are cached per language; an untranslated answer is not cached, so it
+  is retried.
+- `/parse` translates the fan's free text to English with the model, then runs
+  the same deterministic parser. If that fails the text is parsed as typed.
+  Parser refusal reasons stay English.
+- The per-language word lists are a screen, not a proof of neutrality: the
+  source text is neutral and constrained, and a native speaker should review
+  the lists before relying on them.

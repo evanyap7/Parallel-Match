@@ -33,7 +33,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import cache, history_client, historian, intervention, law_explainer, narrator
+from . import cache, history_client, historian, intervention, law_explainer, narrator, translate
 from .facts import fork_facts
 from .provider import TemplateProvider, get_provider, provider_error
 from mcp_history import HistoryStore, default_store
@@ -77,6 +77,8 @@ def _model_backend() -> bool:
 def _cacheable(result: dict) -> bool:
     if result.get("fell_back") and _model_backend():
         return False   # model failed: retry once it is back
+    if result.get("lang", "en") != "en" and not result.get("translated") and _model_backend():
+        return False   # translation failed: retry
     if result.get("source") == "in-process" and history_client.MCP_URL:
         return False   # MCP was skipped: retry through MCP
     return True
@@ -132,11 +134,13 @@ def _event_or_404(store: HistoryStore, match_id: str, event_id: str):
 class NarrateBody(BaseModel):
     fork_response: dict
     match_id: str | None = None
+    lang: str = "en"    # one of translate.LANGUAGES; unknown means English
 
 
 class EventBody(BaseModel):
     match_id: str
     event_id: str
+    lang: str = "en"
 
 
 class PrecedentsBody(EventBody):
@@ -175,16 +179,18 @@ def narrate(body: NarrateBody):
     match_id = (body.match_id or fork.get("match_id")
                 or (fork.get("request") or {}).get("match_id") or "")
     facts = fork_facts(fork)
-    return _cached(cache.key("narrate", match_id, facts),
-                   lambda: narrator.run(fork, store.match(match_id), get_provider()))
+    lang = translate.norm_lang(body.lang)
+    return _cached(cache.key("narrate", match_id, facts, lang),
+                   lambda: narrator.run(fork, store.match(match_id), get_provider(), lang))
 
 
 @app.post("/explain")
 def explain(body: EventBody):
     store = _store()
     event, _index = _event_or_404(store, body.match_id, body.event_id)
-    return _cached(cache.key("explain", body.match_id, body.event_id),
-                   lambda: law_explainer.run(store.match(body.match_id), event, get_provider()))
+    lang = translate.norm_lang(body.lang)
+    return _cached(cache.key("explain", body.match_id, body.event_id, lang),
+                   lambda: law_explainer.run(store.match(body.match_id), event, get_provider(), lang))
 
 
 @app.post("/precedents")
@@ -192,6 +198,7 @@ def precedents(body: PrecedentsBody):
     store = _store()
     event, _index = _event_or_404(store, body.match_id, body.event_id)
     fork = body.fork_response
+    lang = translate.norm_lang(body.lang)
     if fork and (fork.get("match_id"), fork.get("event_id")) not in (
             (body.match_id, body.event_id), (None, None)):
         raise HTTPException(422, "fork_response is for a different moment")
@@ -207,15 +214,32 @@ def precedents(body: PrecedentsBody):
         if f is not None and "match" not in f:
             f = {**f, "match": store.match(body.match_id)}
         result = historian.run(store.match(body.match_id), event,
-                               compare_with_simulation(block, f), get_provider())
+                               compare_with_simulation(block, f), get_provider(), lang)
         result["source"] = via   # "mcp" (via pm-history-mcp) or "in-process" fallback
         return result
 
-    return _cached(cache.key("precedents", body.match_id, body.event_id, sim), compute)
+    return _cached(cache.key("precedents", body.match_id, body.event_id, sim, lang), compute)
 
 
 @app.post("/parse")
 def parse(body: ParseBody):
     store = _store()
     match = _match_or_404(store, body.match_id)
-    return intervention.parse_and_validate(body.text, match, body.event_id)
+    text = _to_english(body.text, translate.norm_lang(body.lang))
+    result = intervention.parse_and_validate(text, match, body.event_id)
+    return {**result, "translated_text": text} if text != body.text else result
+
+
+def _to_english(text: str, lang: str) -> str:
+    """A fan's free text in their language, as English for the parser.
+
+    The parser itself stays plain code; the model only translates the
+    sentence, and any failure leaves the text as typed."""
+    provider = get_provider()
+    if lang == "en" or isinstance(provider, TemplateProvider) or not text.strip():
+        return text
+    try:
+        out = provider.complete(translate.to_english_prompt(lang), text[:300]).strip()
+    except Exception:
+        return text
+    return out if 0 < len(out) <= 300 else text

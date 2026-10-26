@@ -83,8 +83,10 @@ No login needed. Works on desktop and phone.
 7. Use the language menu in the top bar to switch the interface between 18
    languages (English, Spanish, Portuguese, French, German, Italian, Dutch,
    Polish, Russian, Turkish, Arabic, Hindi, Indonesian, Thai, Vietnamese,
-   Chinese, Japanese, Korean). Agent text (commentary, Law, precedent) stays
-   in English, with a note, so the neutrality guardrails keep applying.
+   Chinese, Japanese, Korean). A language screen appears on first visit, and
+   the agent text (commentary, Law, precedent, free-text "what if") follows
+   the choice. Output is checked for numbers and neutral wording before it is
+   shown; if a check fails the English text is served with a note.
 
 Service health, for the curious: https://pm-agents.agreeableflower-13af161d.japaneast.azurecontainerapps.io/health shows the model provider
 (Foundry) and the MCP connection. MCP endpoint (streamable HTTP):

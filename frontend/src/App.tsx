@@ -23,6 +23,7 @@ import { FanView } from "./components/FanView";
 import { AnalystView } from "./components/AnalystView";
 import { MatchHeader } from "./components/MatchHeader";
 import { LanguagePicker } from "./components/LanguagePicker";
+import { LanguageGate } from "./components/LanguageGate";
 import { useI18n } from "./i18n";
 import type { ViewProps } from "./components/viewProps";
 import type {
@@ -36,7 +37,7 @@ import type {
 const errorText = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 export default function App() {
-  const { t } = useI18n();
+  const { t, lang, chosen } = useI18n();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [apiMoments, setApiMoments] = useState<MatchEvent[]>([]);
   const [customChange, setCustomChange] = useState<Change>();
@@ -215,6 +216,7 @@ export default function App() {
               whatIf,
               { match_id: match.match_id, event_id: selected.id },
               ctrl.signal,
+              lang,
             ),
             selected,
           )
@@ -273,6 +275,7 @@ export default function App() {
     transport: { time, end, playing, speed, setTime, setPlaying, setSpeed },
     liveEngine: sourceMode === "api",
   };
+  if (!chosen) return <LanguageGate />;
   return (
     <div className={`app-shell view-${view}`}>
       <header className="topbar">
