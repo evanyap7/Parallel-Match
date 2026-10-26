@@ -5,7 +5,7 @@ of changes, and a deterministic parser plus validator guarantees every parse
 lands inside that set (or is refused). This is also the first feature on the
 cut list, so it is small on purpose.
 
-Supported changes (see docs/PLAN.md "Supported changes"):
+Supported changes (the bounded set the fork engine accepts):
 
 - {"type": "flip_call", "call": ...} where call is one of
   no_foul / free_kick / penalty (contact family) or onside / offside

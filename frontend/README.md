@@ -63,7 +63,7 @@ npm test
 npm run build
 ```
 
-Tests include all 60 backend cached fork responses, replay step boundaries, absent precedent, stale/wrong request rejection, substitution eligibility and HTTP errors. See `../docs/uwais/verification.md` for browser integration evidence.
+Tests include all 60 backend cached fork responses, replay step boundaries, absent precedent, stale/wrong request rejection, substitution eligibility and HTTP errors.
 
 ## Agent integration
 
@@ -71,7 +71,7 @@ Run `uvicorn agents.server:app --port 8001` in a third terminal. The Vite develo
 
 The viewer calls `/explain` on moment selection, `/narrate` after a fork and `/precedents` for an officiating comparison. Free text calls `/parse` before `/fork`. Outputs are validated against the request, requests abort on changed selections, and errors have retry states. The header reports the service's template or Foundry provider mode.
 
-For production, supply a same-origin `/agents` proxy or an HTTPS service URL with appropriate CORS support. See `.env.example` and `../docs/uwais/remaining-status.md` for the compatibility table, service handoffs and deployment checks. The earlier paragraph describing these panels as unimplemented is superseded by this integration section.
+For production, supply a same-origin `/agents` proxy or an HTTPS service URL with appropriate CORS support. See `.env.example` and `../docs/deployment.md` for the service URLs and deployment checks.
 
 ## Look and feel
 

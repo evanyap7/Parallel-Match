@@ -152,8 +152,8 @@ cd frontend && npm install && npm run dev
 - `frontend/` React match viewer (Uwais)
 - `tests/` determinism, state copy, rules, fork engine, API, realism,
   agents, guardrails, history store
-- `docs/` event schema, API, history query for Fabric, build plan, `agents.md`,
-  `deployment.md` (Azure runbook), `uwais/` demand check, demo script, rival review
+- `docs/` event schema, API, history query for Fabric, `agents.md`,
+  `deployment.md` (Azure runbook), `SUBMISSION.md`
 - `fixtures/` sample match and fork responses for front-end work
 - `deploy/` Container Apps deploy script (simulator API, agents, MCP, front end),
   agents Dockerfile, front-end Dockerfile, hello-world smoke app
