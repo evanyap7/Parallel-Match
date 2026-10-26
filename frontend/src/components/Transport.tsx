@@ -1,5 +1,6 @@
 import { GitBranch, Pause, Play, RotateCcw } from "lucide-react";
-import { clockLabel, readable } from "../model";
+import { clockLabel, word } from "../model";
+import { useI18n } from "../i18n";
 import type { ForkResult, MatchEvent } from "../types";
 import type { TransportState } from "./viewProps";
 
@@ -22,17 +23,18 @@ export function Transport({
   result?: ForkResult;
   detailed?: boolean;
 }) {
+  const { t } = useI18n();
   const { time, end, playing, speed, setTime, setPlaying, setSpeed } = state;
   const at = (t: number) => `${end ? (t / end) * 100 : 0}%`;
   return (
     <section
       className={`transport${detailed ? " detailed" : ""}`}
-      aria-label="Replay controls"
+      aria-label={t("tr.controls")}
     >
       <div className="transport-row">
         <button
           className="play-button"
-          aria-label={playing ? "Pause replay" : "Play replay"}
+          aria-label={playing ? t("tr.pause") : t("tr.play")}
           onClick={() => {
             if (time >= end) setTime(0);
             setPlaying((p) => !p);
@@ -42,7 +44,7 @@ export function Transport({
         </button>
         <button
           className="icon-button"
-          aria-label="Restart replay"
+          aria-label={t("tr.restart")}
           onClick={() => {
             setTime(0);
             setPlaying(false);
@@ -56,7 +58,7 @@ export function Transport({
         </span>
         {detailed && (
           <label className="speed-label">
-            Speed
+            {t("tr.speed")}
             <select
               value={speed}
               onChange={(e) => setSpeed(Number(e.target.value))}
@@ -77,7 +79,7 @@ export function Transport({
           max={end}
           step="1"
           value={time}
-          aria-label="Match replay position"
+          aria-label={t("tr.position")}
           aria-valuetext={clockLabel(time)}
           onChange={(e) => {
             setTime(Number(e.target.value));
@@ -88,8 +90,8 @@ export function Transport({
           {markers.map((e) => (
             <button
               key={e.id}
-              aria-label={`Select ${readable(e.type)} at ${e.min} minutes`}
-              title={`${e.min}′ · ${readable(e.type)}`}
+              aria-label={t("tr.select", { type: word(e.type, t), min: e.min })}
+              title={`${e.min}′ · ${word(e.type, t)}`}
               aria-current={e.id === selectedId ? "true" : undefined}
               className={e.id === selectedId ? "selected" : ""}
               style={{ left: at(e.t) }}
@@ -101,14 +103,14 @@ export function Transport({
               className="divergence-pin"
               style={{ left: at(result.divergence.t) }}
             >
-              <GitBranch size={12} /> Fork {result.divergence.min}′
+              <GitBranch size={12} /> {t("tr.fork", { min: result.divergence.min })}
             </span>
           )}
         </div>
       </div>
       <div className="timeline-labels" aria-hidden="true">
-        <span>Kick-off</span>
-        <span>Full time</span>
+        <span>{t("tr.kickoff")}</span>
+        <span>{t("match.fullTime")}</span>
       </div>
     </section>
   );

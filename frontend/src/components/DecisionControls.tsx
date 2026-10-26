@@ -1,5 +1,6 @@
 import type { Change, Club, Match, MatchEvent } from "../types";
 import { changeLabel, changesFor, clubName } from "../model";
+import { useI18n } from "../i18n";
 
 export function availablePlayers(
   club: Club | undefined,
@@ -41,6 +42,7 @@ export function DecisionControls({
   change?: Change;
   onChange: (c: Change) => void;
 }) {
+  const { t } = useI18n();
   const options = [...changesFor(event)];
   if (event.type === "foul")
     options.push(
@@ -83,7 +85,7 @@ export function DecisionControls({
   return (
     <div className="decision-controls">
       <label>
-        Choose an alternative
+        {t("dc.choose")}
         <select
           value={change ? key(change) : ""}
           onChange={(e) => {
@@ -105,7 +107,7 @@ export function DecisionControls({
         >
           {options.map((c) => (
             <option key={key(c)} value={key(c)}>
-              {changeLabel(c, event)}
+              {changeLabel(c, event, t)}
             </option>
           ))}
         </select>
@@ -113,7 +115,7 @@ export function DecisionControls({
       {(change?.type === "substitution" || change?.type === "tactics") && (
         <>
           <label>
-            Team
+            {t("dc.team")}
             <select value={team} onChange={(e) => switchTeam(e.target.value)}>
               {[match.home, match.away].map((code) => (
                 <option key={code} value={code}>
@@ -124,7 +126,7 @@ export function DecisionControls({
           </label>
           {change.type === "tactics" ? (
             <label>
-              Pressing intensity · {Math.round(change.set.press * 100)}%
+              {t("dc.press", { pct: `${Math.round(change.set.press * 100)}%` })}
               <input
                 type="range"
                 min="0"
@@ -142,7 +144,7 @@ export function DecisionControls({
           ) : (
             <>
               <label>
-                Player off
+                {t("dc.off")}
                 <select
                   value={change.off ?? ""}
                   onChange={(e) =>
@@ -150,7 +152,7 @@ export function DecisionControls({
                   }
                 >
                   <option value="" disabled>
-                    Select a player
+                    {t("dc.select")}
                   </option>
                   {players.on.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -160,7 +162,7 @@ export function DecisionControls({
                 </select>
               </label>
               <label>
-                Player on
+                {t("dc.on")}
                 <select
                   value={change.on ?? ""}
                   onChange={(e) =>
@@ -168,7 +170,7 @@ export function DecisionControls({
                   }
                 >
                   <option value="" disabled>
-                    Select a player
+                    {t("dc.select")}
                   </option>
                   {players.bench.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -178,9 +180,7 @@ export function DecisionControls({
                 </select>
               </label>
               {!players.bench.length && (
-                <p className="small muted">
-                  No unused players available. Choose another intervention.
-                </p>
+                <p className="small muted">{t("dc.none")}</p>
               )}
             </>
           )}

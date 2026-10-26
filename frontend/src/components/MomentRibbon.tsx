@@ -1,4 +1,5 @@
 import { clubName, momentHeadline, momentTag } from "../model";
+import { useI18n } from "../i18n";
 import type { Match, MatchEvent } from "../types";
 
 const GAP = 7; // percent of the match a label needs before the next one on its row
@@ -17,6 +18,7 @@ export function MomentRibbon({
   selectedId: string;
   onSelect: (e: MatchEvent) => void;
 }) {
+  const { t } = useI18n();
   const last: Record<string, number[]> = { home: [], away: [] };
   const placed = moments.map((e) => {
     const side = e.team === match.away ? "away" : "home";
@@ -30,8 +32,8 @@ export function MomentRibbon({
   return (
     <section className="ribbon" aria-labelledby="ribbon-title">
       <div className="ribbon-head">
-        <h2 id="ribbon-title">Key moments</h2>
-        <p>Pick one, then replay the match with a different call.</p>
+        <h2 id="ribbon-title">{t("ribbon.title")}</h2>
+        <p>{t("ribbon.sub")}</p>
       </div>
       <div className="ribbon-track">
         <span className="ribbon-side home" aria-hidden="true">
@@ -43,7 +45,7 @@ export function MomentRibbon({
         <div className="ribbon-line" aria-hidden="true">
           <span style={{ left: "0%" }}>0′</span>
           <span style={{ left: `${end ? (2700 / end) * 100 : 50}%` }}>45′</span>
-          <span style={{ left: "100%" }}>FT</span>
+          <span style={{ left: "100%" }}>{t("ribbon.ft")}</span>
         </div>
         <ol className="ribbon-pins">
           {placed.map(({ e, side, pos, level }) => (
@@ -57,8 +59,8 @@ export function MomentRibbon({
                 onClick={() => onSelect(e)}
               >
                 <span className="pin-min">{e.min}′</span>
-                <span className="pin-tag">{momentTag(e)}</span>
-                <span className="pin-label">{momentHeadline(e)}</span>
+                <span className="pin-tag">{momentTag(e, t)}</span>
+                <span className="pin-label">{momentHeadline(e, t)}</span>
               </button>
             </li>
           ))}

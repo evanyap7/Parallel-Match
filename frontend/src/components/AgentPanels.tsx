@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { agentHealth, explain, narrate, precedents } from "../agents";
 import type { AgentText } from "../agents";
+import { useI18n } from "../i18n";
 import type { ForkResult, MatchEvent } from "../types";
 
 function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
+  const { t } = useI18n();
   const [state, setState] = useState<{ data?: T; error?: string }>({});
   const [retry, setRetry] = useState(0);
   useEffect(() => {
@@ -16,7 +18,7 @@ function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
       .catch((e) => {
         if (!ctrl.signal.aborted)
           setState({
-            error: e instanceof Error ? e.message : "Agent unavailable.",
+            error: e instanceof Error ? e.message : t("agent.failed"),
           });
       });
     return () => ctrl.abort();
@@ -24,36 +26,45 @@ function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
   }, [retry]);
   return { ...state, retry: () => setRetry((n) => n + 1) };
 }
+function EnglishNote() {
+  const { lang, t } = useI18n();
+  return lang === "en" ? null : (
+    <p className="small muted">{t("agent.englishNote")}</p>
+  );
+}
 function AgentState({ error, retry }: { error?: string; retry: () => void }) {
+  const { t } = useI18n();
   return (
     <p className="small muted" role="status">
-      {error ?? "Consulting the agent…"}{" "}
+      {error ?? t("agent.consulting")}{" "}
       {error && (
         <button className="text-button" onClick={retry}>
-          Retry
+          {t("agent.retry")}
         </button>
       )}
     </p>
   );
 }
 function Source({ data }: { data: { fell_back: boolean } }) {
+  const { t } = useI18n();
   return (
     <span className="small-label">
-      {data.fell_back ? "Guarded template fallback" : "Agent service output"}
+      {data.fell_back ? t("agent.fallback") : t("agent.output")}
     </span>
   );
 }
 export function AgentStatus() {
+  const { t } = useI18n();
   const state = useAgent(agentHealth);
   return (
     <span className="agent-status">
       {state.data?.includes("template")
-        ? "Agents: template mode"
+        ? t("agent.template")
         : state.data
-          ? "Agents: Foundry"
+          ? t("agent.foundry")
           : state.error
-            ? "Agents unavailable"
-            : "Connecting agents…"}
+            ? t("agent.unavailable")
+            : t("agent.connecting")}
     </span>
   );
 }
@@ -66,17 +77,19 @@ export function AgentLaw({
   event: MatchEvent;
   open?: boolean;
 }) {
+  const { t } = useI18n();
   const state = useAgent((signal) => explain(matchId, event.id, signal));
   return (
-    <section className="agent-law" aria-label="Law Explainer">
-      <h4>Law Explainer</h4>
+    <section className="agent-law" aria-label={t("agent.law")}>
+      <h4>{t("agent.law")}</h4>
       {state.data ? (
         <>
           <details className="law-details" open={open}>
-            <summary>Full explanation</summary>
+            <summary>{t("agent.fullExplanation")}</summary>
             <p>{state.data.text}</p>
           </details>
           <Source data={state.data} />
+          <EnglishNote />
         </>
       ) : (
         <AgentState {...state} />
@@ -91,14 +104,15 @@ export function AgentNarrative({
   result: ForkResult;
   variant?: "fan" | "analyst";
 }) {
+  const { t } = useI18n();
   const state = useAgent((signal) => narrate(result, signal));
   return (
     <section
       className={`agent-narrative ${variant}`}
-      aria-label="Narrator commentary"
+      aria-label={t("agent.narratorAria")}
     >
       <div className="section-title">
-        <h3>{variant === "fan" ? "Commentary" : "Narrator"}</h3>
+        <h3>{variant === "fan" ? t("agent.commentary") : t("agent.narrator")}</h3>
         {state.data && <Source data={state.data} />}
       </div>
       {state.data ? (
@@ -106,7 +120,7 @@ export function AgentNarrative({
           {["real", "alternate"].map((side) => (
             <div key={side}>
               <span className="timeline-name">
-                {side === "real" ? "What happened" : "What could have happened"}
+                {side === "real" ? t("agent.happened") : t("agent.couldHappen")}
               </span>
               <p>
                 {
@@ -120,11 +134,9 @@ export function AgentNarrative({
       ) : (
         <AgentState {...state} />
       )}
+      {state.data && <EnglishNote />}
       {variant === "analyst" && (
-        <p className="small muted">
-          Full-time summaries reveal both outcomes. Replay positions follow the
-          shared clock.
-        </p>
+        <p className="small muted">{t("agent.fullTimeNote")}</p>
       )}
     </section>
   );
@@ -142,6 +154,7 @@ export function historyAgreement(
   return result.history?.agrees_with_simulation ?? null;
 }
 export function AgentHistory({ result }: { result: ForkResult }) {
+  const { t } = useI18n();
   const state = useAgent((signal) =>
     precedents(result.match_id, result.event_id, signal),
   );
@@ -150,28 +163,24 @@ export function AgentHistory({ result }: { result: ForkResult }) {
     canonical && typeof canonical === "object" && "when_given" in canonical;
   const agrees = state.data ? historyAgreement(state.data, result) : null;
   return (
-    <section className="agent-history" aria-label="Historian agent">
+    <section className="agent-history" aria-label={t("agent.histAria")}>
       <div className="section-title">
-        <h4>Historian</h4>
+        <h4>{t("agent.historian")}</h4>
         {state.data && <Source data={state.data} />}
       </div>
       {state.data ? (
         <>
           <p>{state.data.text}</p>
           <p className="small muted">
-            {aligned
-              ? "Source: unified season precedent."
-              : "Source: agents history query. The current service uses its development dataset and a different comparison method; its count may differ from the simulator above."}
+            {aligned ? t("agent.srcUnified") : t("agent.srcDev")}
           </p>
           {agrees !== null && (
             <p className={`agreement ${!agrees ? "disagrees" : ""}`}>
-              {agrees
-                ? "Simulation and season precedent agree in direction."
-                : "These disagree: simulation and season precedent point in different directions."}{" "}
-              {!aligned &&
-                "This assessment uses the simulator’s season precedent, not the separate agent query."}
+              {agrees ? t("agent.agree") : t("agent.disagree")}{" "}
+              {!aligned && t("agent.usesSim")}
             </p>
           )}
+          <EnglishNote />
         </>
       ) : (
         <AgentState {...state} />

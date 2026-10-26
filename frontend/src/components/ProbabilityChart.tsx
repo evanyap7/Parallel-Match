@@ -1,5 +1,6 @@
 import type { ForkResult } from "../types";
 import { percent } from "../model";
+import { useI18n } from "../i18n";
 export function ProbabilityChart({
   result,
   home,
@@ -7,6 +8,7 @@ export function ProbabilityChart({
   result: ForkResult;
   home: string;
 }) {
+  const { t } = useI18n();
   const a = result.original.win_prob,
     b = result.alternate.win_prob;
   const end = Math.max(
@@ -23,26 +25,34 @@ export function ProbabilityChart({
   return (
     <section className="probability card">
       <div className="section-title">
-        <h3>{home} win probability</h3>
+        <h3>{t("chart.title", { team: home })}</h3>
         <span className="small-label">
-          {result.placeholder ? "Placeholder curves" : "Model estimates"}
+          {result.placeholder ? t("chart.placeholder") : t("chart.estimates")}
         </span>
       </div>
       <div className="chart-legend">
         <span>
           <i className="legend-line original" />
-          Original
+          {t("chart.original")}
         </span>
         <span>
           <i className="legend-line alternate" />
-          Alternate
+          {t("chart.alternate")}
         </span>
-        <span className="chart-key">Full scenario comparison</span>
+        <span className="chart-key">{t("chart.key")}</span>
       </div>
       <svg
         viewBox="0 0 640 270"
         role="img"
-        aria-label={`${home} win probability comparison. Original ink line ends at ${percent(a.at(-1)?.home ?? 0)}; alternate dashed blue line, after the decision at minute ${result.divergence.min}, ends at ${percent(b.at(-1)?.home ?? 0)}. ${result.placeholder ? "All curve values are fixture placeholders." : "Simulation estimates, not real-world predictions."}`}
+        aria-label={t("chart.aria", {
+          team: home,
+          a: percent(a.at(-1)?.home ?? 0),
+          b: percent(b.at(-1)?.home ?? 0),
+          min: result.divergence.min,
+          note: result.placeholder
+            ? t("chart.ariaPlaceholder")
+            : t("chart.ariaEstimates"),
+        })}
       >
         {[0, 0.5, 1].map((v) => (
           <g key={v}>
@@ -94,14 +104,12 @@ export function ProbabilityChart({
           fontSize="14"
           fill="var(--muted)"
         >
-          Decision {result.divergence.min}′
+          {t("chart.decision", { min: result.divergence.min })}
         </text>
       </svg>
       <p className="muted small">
-        {result.placeholder
-          ? "Illustrative fixture values; not measured simulator output. "
-          : ""}
-        Lines join supplied samples. A typical replay is one possible path.
+        {result.placeholder ? `${t("chart.fixtureNote")} ` : ""}
+        {t("chart.note")}
       </p>
     </section>
   );

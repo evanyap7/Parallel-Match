@@ -30,6 +30,11 @@ number on screen comes with its uncertainty.
 | Do the agents invent numbers? | No. All numbers and moment-finding stay in plain code; agents only phrase them, and guardrails reject output with numbers not in the facts or wording that judges officials (`agents/guardrails.py`). |
 | Is it neutral about officials? | Decisions are explained against the Law of the Game they fall under, with the measured margin. Nothing says a referee or player "got it wrong". |
 
+**Languages.** The interface is available in 18 languages across the Americas, Europe and Asia
+(language menu in the top bar; Arabic is laid out right to left). Catalogs live in
+`frontend/src/i18n/`, and a test fails if any language misses a key or breaks a placeholder.
+Agent text stays English because the neutrality guardrails are English-only.
+
 **Microsoft stack**
 
 | Service | Used for | Where | Status |

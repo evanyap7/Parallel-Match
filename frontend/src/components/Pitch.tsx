@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { Radio, GitBranch } from "lucide-react";
 import { clockLabel, describe, eventAt, scoreText } from "../model";
+import { useI18n } from "../i18n";
 import type { MatchEvent } from "../types";
 
 interface Props {
@@ -21,6 +22,7 @@ export function Pitch({
   pending = false,
   divergence,
 }: Props) {
+  const { t } = useI18n();
   const id = useId().replaceAll(":", "");
   const current = eventAt(events, time);
   const recent = events
@@ -32,15 +34,15 @@ export function Pitch({
   return (
     <section
       className={`pitch-panel ${alternate ? "alternate" : ""}`}
-      aria-label={`${alternate ? "Alternate" : "Original"} match replay`}
+      aria-label={alternate ? t("pitch.alt") : t("pitch.orig")}
     >
       <div className="pitch-heading">
         <span className="pitch-title">
           {alternate ? <GitBranch size={13} /> : <Radio size={13} />}{" "}
-          {alternate ? "Alternate timeline" : "Original timeline"}
+          {alternate ? t("pitch.altTitle") : t("pitch.origTitle")}
         </span>
         <span className="live-label">
-          {pending ? "Awaiting events" : "Synthetic replay"}
+          {pending ? t("pitch.awaiting") : t("pitch.synthetic")}
         </span>
       </div>
       <div className="scorebug">
@@ -60,8 +62,11 @@ export function Pitch({
             role="img"
             aria-label={
               pending
-                ? "Alternate pitch waiting for simulator events"
-                : `Ball event replay at ${clockLabel(time)}. ${describe(current)}`
+                ? t("pitch.pendingAria")
+                : t("pitch.replayAria", {
+                    clock: clockLabel(time),
+                    desc: describe(current, t),
+                  })
             }
           >
             <defs>
@@ -143,39 +148,35 @@ export function Pitch({
                 top: `${((Math.max(6, ball[1] - 5) + 6) / 80) * 100}%`,
               }}
             >
-              {current?.player ?? "BALL"}
+              {current?.player ?? t("pitch.ball")}
             </span>
           )}
         </div>
-        <p className="attack-note">{home} attacks →</p>
+        <p className="attack-note">{t("pitch.attacks", { team: home })}</p>
         {pending && (
           <div className="pending-pitch">
             <GitBranch size={25} />
-            <strong>A different story starts here.</strong>
+            <strong>{t("pitch.diffStory")}</strong>
             <p>
-              No alternate events have been supplied yet.
+              {t("pitch.noneSupplied")}
               <br />
-              The replay will appear when the simulator provides them.
+              {t("pitch.willAppear")}
             </p>
-            <span>Original events are never used as an alternate.</span>
+            <span>{t("pitch.neverOriginal")}</span>
           </div>
         )}
         {!pending && divergence !== undefined && time >= divergence && (
-          <span className="forked-badge">After the fork</span>
+          <span className="forked-badge">{t("pitch.afterFork")}</span>
         )}
       </div>
       <div className="pitch-caption">
         <span className={`status-dot ${pending ? "muted" : ""}`} />
         <span>
-          {pending
-            ? "Alternate replay pending · model world"
-            : describe(current)}
+          {pending ? t("pitch.pendingCaption") : describe(current, t)}
         </span>
       </div>
       <p className="pitch-note">
-        {pending
-          ? "No invented player movement or match outcome."
-          : "Recorded ball-event positions · schematic replay, not player tracking."}
+        {pending ? t("pitch.pendingNote") : t("pitch.note")}
       </p>
     </section>
   );

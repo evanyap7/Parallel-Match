@@ -207,6 +207,17 @@ abbr {
   align-items: center;
   gap: 7px;
 }
+.lang-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+.lang-picker select {
+  height: 32px;
+  max-width: 150px;
+  font-size: 13px;
+}
 .status-dot {
   width: 7px;
   height: 7px;
@@ -1637,4 +1648,16 @@ table.data .muted {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Right-to-left languages: text flows right to left, but the timeline and
+   pitch stay left to right so minutes and attacking direction keep their meaning. */
+[dir="rtl"] .ribbon-track,
+[dir="rtl"] .scrubber,
+[dir="rtl"] .pitch-board,
+[dir="rtl"] .probability svg {
+  direction: ltr;
+}
+.ribbon-line span {
+  white-space: nowrap;
 }

@@ -9,10 +9,11 @@ import {
   eventsFrom,
   percent,
   points,
-  readable,
   scoreText,
   statsAt,
+  word,
 } from "../model";
+import { useI18n } from "../i18n";
 import { Pitch } from "./Pitch";
 import { Transport } from "./Transport";
 import { ProbabilityChart } from "./ProbabilityChart";
@@ -26,6 +27,7 @@ const pc = (v?: number | null) =>
 
 /** Analyst view: every figure the engine produces, set as tables and type. */
 export function AnalystView(p: ViewProps) {
+  const { t } = useI18n();
   const { match, result, transport } = p;
   return (
     <div className="analyst">
@@ -64,12 +66,8 @@ export function AnalystView(p: ViewProps) {
         <Report {...p} result={result} />
       ) : (
         <section className="report-empty" aria-labelledby="report-title">
-          <h2 id="report-title">Comparison</h2>
-          <p>
-            Run a comparison to fill this report: the outcome shift with its 95%
-            interval, the alternate score distribution, season precedent and the
-            divergence log.
-          </p>
+          <h2 id="report-title">{t("an.report")}</h2>
+          <p>{t("an.reportEmpty")}</p>
         </section>
       )}
       <MomentTable
@@ -82,28 +80,29 @@ export function AnalystView(p: ViewProps) {
 }
 
 function MatchStats({ match, time }: { match: Match; time: number }) {
+  const { t } = useI18n();
   const s = useMemo(() => statsAt(match, time), [match, time]);
   const score = eventAt(match.events, time)?.score ?? [0, 0];
   const comp = (i: number) =>
     s.passes[i] ? percent(s.completed[i] / s.passes[i]) : "–";
   const cells: [string, string, string][] = [
     [
-      "Score",
+      t("an.score"),
       scoreText(score as [number, number]),
       `${match.home} / ${match.away}`,
     ],
-    ["Shots", `${s.shots[0]} / ${s.shots[1]}`, "Recorded shot events"],
+    [t("an.shots"), `${s.shots[0]} / ${s.shots[1]}`, t("an.shotsNote")],
     [
-      "Expected goals",
+      t("an.xg"),
       `${s.xg[0].toFixed(2)} / ${s.xg[1].toFixed(2)}`,
-      "Sum of simulator xG",
+      t("an.xgNote"),
     ],
-    ["Pass completion", `${comp(0)} / ${comp(1)}`, "Completed of attempted"],
+    [t("an.pass"), `${comp(0)} / ${comp(1)}`, t("an.passNote")],
   ];
   return (
     <section
       className="stat-strip"
-      aria-label={`Match statistics at ${clockLabel(time)}`}
+      aria-label={t("an.statsAria", { clock: clockLabel(time) })}
     >
       {cells.map(([label, value, note]) => (
         <div key={label}>
@@ -117,12 +116,13 @@ function MatchStats({ match, time }: { match: Match; time: number }) {
 }
 
 function Dossier(p: ViewProps) {
+  const { t } = useI18n();
   const e = p.selected;
   if (!e)
     return (
       <aside className="dossier panel">
-        <h2>Decision</h2>
-        <p>No supported moments in this match.</p>
+        <h2>{t("an.decision")}</h2>
+        <p>{t("an.noMoments")}</p>
       </aside>
     );
   const margin =
@@ -130,30 +130,30 @@ function Dossier(p: ViewProps) {
       ? `${e.margin > 0 ? "+" : ""}${e.margin.toFixed(3)}${e.type === "offside" ? " m" : ""}`
       : null;
   const rows: [string, string][] = [
-    ["Minute", `${e.min}′`],
-    ["Event", readable(e.type)],
-    ["Team", e.team ? clubName(e.team) : "–"],
-    ["Player", e.player ?? "–"],
-    ["Recorded call", e.call ? readable(e.call) : "–"],
+    [t("an.minute"), `${e.min}′`],
+    [t("an.event"), word(e.type, t)],
+    [t("an.team"), e.team ? clubName(e.team) : "–"],
+    [t("an.player"), e.player ?? "–"],
+    [t("an.recorded"), e.call ? word(e.call, t) : "–"],
   ];
   if (e.contact !== undefined)
-    rows.push(["Contact severity", e.contact.toFixed(3)]);
+    rows.push([t("an.contact"), e.contact.toFixed(3)]);
   if (margin)
     rows.push([
-      e.type === "offside" ? "Beyond the line" : "Against threshold",
+      e.type === "offside" ? t("an.beyond") : t("an.threshold"),
       margin,
     ]);
   if (e.offside_margin !== undefined)
-    rows.push(["Offside margin", `${e.offside_margin.toFixed(2)} m`]);
+    rows.push([t("an.offMargin"), `${e.offside_margin.toFixed(2)} m`]);
   rows.push(
-    ["Contestable", e.contestable ? "Yes" : "No"],
-    ["Simulator step", String(e.step)],
-    ["Ball position", e.xy ? `${e.xy[0]}, ${e.xy[1]}` : "–"],
+    [t("an.contestable"), e.contestable ? t("an.yes") : t("an.no")],
+    [t("an.step"), String(e.step)],
+    [t("an.ball"), e.xy ? `${e.xy[0]}, ${e.xy[1]}` : "–"],
   );
   return (
     <aside className="dossier panel" aria-labelledby="dossier-title">
       <header className="panel-head">
-        <h2 id="dossier-title">Decision</h2>
+        <h2 id="dossier-title">{t("an.decision")}</h2>
         <code>{e.id}</code>
       </header>
       <dl className="facts">
@@ -165,9 +165,9 @@ function Dossier(p: ViewProps) {
         ))}
       </dl>
       <p className="law-ref">
-        {e.law ?? "No law reference supplied for this event."}
+        {e.law ?? t("an.noLaw")}
       </p>
-      <h3 className="panel-sub">Change</h3>
+      <h3 className="panel-sub">{t("an.change")}</h3>
       {p.liveEngine ? (
         <DecisionControls
           event={e}
@@ -177,7 +177,9 @@ function Dossier(p: ViewProps) {
           onChange={p.updateChange}
         />
       ) : (
-        p.change && <p className="change-name">{changeLabel(p.change, e)}</p>
+        p.change && (
+          <p className="change-name">{changeLabel(p.change, e, t)}</p>
+        )
       )}
       <button
         className="primary explore"
@@ -186,24 +188,24 @@ function Dossier(p: ViewProps) {
       >
         {p.forkLoading ? (
           <>
-            <LoaderCircle size={17} className="spin" /> Running rollouts…
+            <LoaderCircle size={17} className="spin" /> {t("an.running")}
           </>
         ) : (
           <>
-            Run comparison <ArrowRight size={17} />
+            {t("an.run")} <ArrowRight size={17} />
           </>
         )}
       </button>
       {p.forkLoading && (
         <button className="text-button" onClick={p.cancel}>
-          Cancel
+          {t("fan.cancel")}
         </button>
       )}
       {!p.canMock && (
         <p className="small muted">
-          Offline mode has one featured moment.{" "}
+          {t("an.offlineOne")}{" "}
           <button className="text-button" onClick={p.loadExample}>
-            Load it
+            {t("an.load")}
           </button>
         </p>
       )}
@@ -221,7 +223,7 @@ function Dossier(p: ViewProps) {
           }}
         >
           <label htmlFor="an-what-if">
-            Free text, parsed by the Intervention agent
+            {t("an.freeText")}
           </label>
           <div className="ask-row">
             <input
@@ -229,18 +231,18 @@ function Dossier(p: ViewProps) {
               maxLength={300}
               value={p.whatIf}
               onChange={(ev) => p.setWhatIf(ev.target.value)}
-              placeholder="e.g. no penalty, or he was onside"
+              placeholder={t("an.freePlaceholder")}
             />
             <button
               className="secondary"
               disabled={!p.whatIf.trim() || p.forkLoading}
             >
-              Parse
+              {t("an.parse")}
             </button>
           </div>
           {p.result && (
             <p className="small muted">
-              Sent to the fork: {p.result.description}.
+              {t("an.sent", { description: p.result.description })}
             </p>
           )}
         </form>
@@ -255,22 +257,26 @@ function Dossier(p: ViewProps) {
 }
 
 function Report(p: ViewProps & { result: ForkResult }) {
+  const { t } = useI18n();
   const { result, match } = p;
   const sides = [
-    ["home", `${clubName(match.home)} win`],
-    ["draw", "Draw"],
-    ["away", `${clubName(match.away)} win`],
+    ["home", t("an.win", { club: clubName(match.home) })],
+    ["draw", t("an.draw")],
+    ["away", t("an.win", { club: clubName(match.away) })],
   ] as const;
   return (
     <section className="report" aria-labelledby="report-title">
       <header className="report-head">
-        <h2 id="report-title">Comparison</h2>
+        <h2 id="report-title">{t("an.report")}</h2>
         <p>
-          {result.description} · fork at {result.divergence.min}′ ·{" "}
-          {result.rollouts.toLocaleString()} paired rollouts
-          {result.cached ? " · precomputed" : ""}
+          {result.description} ·{" "}
+          {t("an.rolloutsLine", {
+            min: result.divergence.min,
+            n: result.rollouts.toLocaleString(),
+          })}
+          {result.cached ? ` · ${t("an.precomputed")}` : ""}
           {result.timing ? ` · ${result.timing.total_s.toFixed(1)} s` : ""}
-          {result.placeholder ? " · fixture placeholder" : ""}
+          {result.placeholder ? ` · ${t("an.placeholder")}` : ""}
         </p>
       </header>
       <div className="shift-strip">
@@ -281,15 +287,17 @@ function Report(p: ViewProps & { result: ForkResult }) {
               <span>{label}</span>
               <strong>{points(result.outcome_shift[k])}</strong>
               <small>
-                95% CI {points(ci[0])} to {points(ci[1])}
+                {t("an.ci", { a: points(ci[0]), b: points(ci[1]) })}
               </small>
             </div>
           );
         })}
         <div>
-          <span>Typical final score</span>
+          <span>{t("an.typical")}</span>
           <strong>{scoreText(result.alternate.final_score)}</strong>
-          <small>Real {scoreText(result.original.final_score)}</small>
+          <small>
+            {t("an.realScore", { score: scoreText(result.original.final_score) })}
+          </small>
         </div>
       </div>
       <div className="report-row two">
@@ -319,10 +327,8 @@ function Report(p: ViewProps & { result: ForkResult }) {
             />
           ) : (
             <>
-              <h3>Historian</h3>
-              <p className="small muted">
-                Season precedent covers officiating calls only.
-              </p>
+              <h3>{t("agent.historian")}</h3>
+              <p className="small muted">{t("an.noHistorian")}</p>
             </>
           )}
         </section>
@@ -332,24 +338,25 @@ function Report(p: ViewProps & { result: ForkResult }) {
 }
 
 function OutcomeTable({ result, match }: { result: ForkResult; match: Match }) {
+  const { t } = useI18n();
   const o = result.original.outcome;
   const a = result.alternate.outcome;
   const rows = [
     ["home", clubName(match.home)],
-    ["draw", "Draw"],
+    ["draw", t("an.draw")],
     ["away", clubName(match.away)],
   ] as const;
   return (
     <section className="panel">
-      <h3>Outcome shares</h3>
+      <h3>{t("an.outcomeTitle")}</h3>
       <table className="data">
         <thead>
           <tr>
-            <th>Result</th>
-            <th className="num">Real</th>
-            <th className="num">What if</th>
-            <th className="num">Shift</th>
-            <th className="num">95% CI</th>
+            <th>{t("an.result")}</th>
+            <th className="num">{t("an.real")}</th>
+            <th className="num">{t("an.whatIf")}</th>
+            <th className="num">{t("an.shift")}</th>
+            <th className="num">{t("an.ci95")}</th>
           </tr>
         </thead>
         <tbody>
@@ -367,25 +374,24 @@ function OutcomeTable({ result, match }: { result: ForkResult; match: Match }) {
         </tbody>
       </table>
       <p className="small muted">
-        From {result.rollouts.toLocaleString()} paired rollouts after the fork;
-        each pair shares its random numbers, so the shift is the change, not
-        luck.
+        {t("an.outcomeNote", { n: result.rollouts.toLocaleString() })}
       </p>
     </section>
   );
 }
 
 function ScoreSpread({ result }: { result: ForkResult }) {
+  const { t } = useI18n();
   const max = Math.max(...result.score_spread.map((s) => s.share), 0.01);
   const typical = scoreText(result.alternate.final_score);
   return (
     <section className="panel">
-      <h3>Alternate final scores</h3>
+      <h3>{t("an.altScores")}</h3>
       <table className="data">
         <thead>
           <tr>
-            <th>Score</th>
-            <th>Share of rollouts</th>
+            <th>{t("an.score")}</th>
+            <th>{t("an.shareRollouts")}</th>
             <th className="num">%</th>
           </tr>
         </thead>
@@ -396,7 +402,7 @@ function ScoreSpread({ result }: { result: ForkResult }) {
               <tr key={label}>
                 <th scope="row">
                   {label}
-                  {label === typical && <span className="tag">typical</span>}
+                  {label === typical && <span className="tag">{t("an.typicalTag")}</span>}
                 </th>
                 <td>
                   <span
@@ -411,47 +417,46 @@ function ScoreSpread({ result }: { result: ForkResult }) {
         </tbody>
       </table>
       <p className="small muted">
-        The real match finished {scoreText(result.original.final_score)}.
+        {t("an.realFinished", { score: scoreText(result.original.final_score) })}
       </p>
     </section>
   );
 }
 
 function PrecedentPanel({ result }: { result: ForkResult }) {
+  const { t } = useI18n();
   const h = result.history;
   if (!h)
     return (
       <section className="panel">
-        <h3>Season precedent</h3>
-        <p className="small muted">
-          Precedent is computed for flipped officiating calls only.
-        </p>
+        <h3>{t("an.precedent")}</h3>
+        <p className="small muted">{t("an.precedentNone")}</p>
       </section>
     );
   const g = h.when_given;
   const n = h.when_not_given;
   return (
     <section className="panel">
-      <h3>Season precedent</h3>
+      <h3>{t("an.precedent")}</h3>
       <p className="panel-note">{h.description}</p>
       <table className="data">
         <thead>
           <tr>
-            <th>Call</th>
+            <th>{t("an.call")}</th>
             <th className="num">n</th>
-            <th className="num">Attack won</th>
-            <th className="num">Goal in 10′</th>
+            <th className="num">{t("an.attackWon")}</th>
+            <th className="num">{t("an.goal10")}</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <th scope="row">Given</th>
+            <th scope="row">{t("an.given")}</th>
             <td className="num">{g.n}</td>
             <td className="num">{pc(g.win)}</td>
             <td className="num">{pc(g.goal_10)}</td>
           </tr>
           <tr>
-            <th scope="row">Not given</th>
+            <th scope="row">{t("an.notGiven")}</th>
             <td className="num">{n.n}</td>
             <td className="num">{pc(n.win)}</td>
             <td className="num">{pc(n.goal_10)}</td>
@@ -460,15 +465,15 @@ function PrecedentPanel({ result }: { result: ForkResult }) {
       </table>
       <dl className="facts compact">
         <div>
-          <dt>History shift, {h.attacking_team}</dt>
+          <dt>{t("an.histShift", { team: h.attacking_team })}</dt>
           <dd>
             {h.history_shift_att_win == null
-              ? "Not enough precedent"
+              ? t("an.notEnough")
               : points(h.history_shift_att_win)}
           </dd>
         </div>
         <div>
-          <dt>Simulated shift, {h.attacking_team}</dt>
+          <dt>{t("an.simShift", { team: h.attacking_team })}</dt>
           <dd className="alt">
             {h.sim_shift_att_win == null ? "–" : points(h.sim_shift_att_win)}
           </dd>
@@ -478,10 +483,10 @@ function PrecedentPanel({ result }: { result: ForkResult }) {
         className={`agreement${h.agrees_with_simulation === false ? " disagrees" : ""}`}
       >
         {h.agrees_with_simulation == null
-          ? "Not enough precedent to compare."
+          ? t("an.cmpNone")
           : h.agrees_with_simulation
-            ? "Precedent and simulation agree in direction."
-            : "Precedent and simulation disagree. Treat the estimate as uncertain."}
+            ? t("an.cmpAgree")
+            : t("an.cmpDisagree")}
       </p>
     </section>
   );
@@ -496,6 +501,7 @@ function DivergenceLog({
   result: ForkResult;
   forkEvents: MatchEvent[];
 }) {
+  const { t } = useI18n();
   const step = result.divergence.step;
   const column = (title: string, list: MatchEvent[], alt: boolean) => (
     <div className={`log-col${alt ? " alt" : ""}`}>
@@ -504,7 +510,7 @@ function DivergenceLog({
         {list.map((e) => (
           <li key={e.id}>
             <span className="log-min">{e.min}′</span>
-            <span className="log-what">{describe(e)}</span>
+            <span className="log-what">{describe(e, t)}</span>
             <span className="log-score">{scoreText(e.score)}</span>
           </li>
         ))}
@@ -513,24 +519,21 @@ function DivergenceLog({
   );
   return (
     <section className="panel log">
-      <h3>Divergence log</h3>
-      <p className="panel-note">
-        Events from the fork at {result.divergence.min}′, passes and dribbles
-        left out.
-      </p>
+      <h3>{t("an.divergence")}</h3>
+      <p className="panel-note">{t("an.divNote", { min: result.divergence.min })}</p>
       <div className="log-grid">
-        {column("Real", eventsFrom(match.events, step, 8), false)}
-        {column("What if", eventsFrom(forkEvents, step, 8), true)}
+        {column(t("an.real"), eventsFrom(match.events, step, 8), false)}
+        {column(t("an.whatIf"), eventsFrom(forkEvents, step, 8), true)}
       </div>
     </section>
   );
 }
 
 const FILTERS = [
-  ["all", "All"],
-  ["foul", "Contact"],
-  ["offside", "Offside"],
-  ["other", "Goals, cards, subs"],
+  ["all", "an.fAll"],
+  ["foul", "an.fContact"],
+  ["offside", "an.fOffside"],
+  ["other", "an.fOther"],
 ] as const;
 
 function MomentTable({
@@ -542,6 +545,7 @@ function MomentTable({
   selectedId: string;
   onSelect: (e: MatchEvent) => void;
 }) {
+  const { t } = useI18n();
   const [filter, setFilter] = useState<string>("all");
   const rows = moments.filter(
     (e) =>
@@ -555,11 +559,11 @@ function MomentTable({
   return (
     <section className="panel moments" aria-labelledby="moments-title">
       <header className="panel-head">
-        <h2 id="moments-title">All moments</h2>
+        <h2 id="moments-title">{t("an.moments")}</h2>
         <span className="count">
-          {rows.length} of {moments.length}
+          {t("an.countOf", { n: rows.length, total: moments.length })}
         </span>
-        <div className="filter-row" role="group" aria-label="Filter moments">
+        <div className="filter-row" role="group" aria-label={t("an.filter")}>
           {FILTERS.map(([v, l]) => (
             <button
               key={v}
@@ -567,7 +571,7 @@ function MomentTable({
               className={filter === v ? "active" : ""}
               onClick={() => setFilter(v)}
             >
-              {l}
+              {t(l)}
             </button>
           ))}
         </div>
@@ -576,12 +580,12 @@ function MomentTable({
         <table className="data moments-table">
           <thead>
             <tr>
-              <th className="num">Min</th>
-              <th>Moment</th>
-              <th>Team</th>
-              <th>Call</th>
-              <th className="num">Margin</th>
-              <th>Contestable</th>
+              <th className="num">{t("an.colMin")}</th>
+              <th>{t("an.colMoment")}</th>
+              <th>{t("an.colTeam")}</th>
+              <th>{t("an.colCall")}</th>
+              <th className="num">{t("an.colMargin")}</th>
+              <th>{t("an.colContestable")}</th>
             </tr>
           </thead>
           <tbody>
@@ -594,12 +598,12 @@ function MomentTable({
                     aria-current={e.id === selectedId ? "true" : undefined}
                     onClick={() => onSelect(e)}
                   >
-                    {readable(e.type)}
+                    {word(e.type, t)}
                     {e.player ? ` · ${e.player}` : ""}
                   </button>
                 </td>
                 <td>{e.team ?? "–"}</td>
-                <td>{e.call ? readable(e.call) : "–"}</td>
+                <td>{e.call ? word(e.call, t) : "–"}</td>
                 <td className="num">
                   {e.margin !== undefined
                     ? e.margin.toFixed(3)
@@ -607,7 +611,7 @@ function MomentTable({
                       ? `${e.offside_margin.toFixed(2)} m`
                       : "–"}
                 </td>
-                <td>{e.contestable ? "Yes" : "–"}</td>
+                <td>{e.contestable ? t("an.yes") : "–"}</td>
               </tr>
             ))}
           </tbody>

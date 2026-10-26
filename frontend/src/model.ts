@@ -1,4 +1,6 @@
 import type { Change, ForkResult, MatchEvent, Match, Score } from "./types";
+import { en } from "./i18n/en";
+import { tEn, type T } from "./i18n";
 
 export const CLUBS: Record<string, string> = {
   HAR: "Harbourside Rovers",
@@ -18,6 +20,9 @@ export const points = (n: number) =>
   `${n > 0 ? "+" : ""}${(n * 100).toFixed(1)} pp`;
 export const scoreText = (score: Score) => `${score[0]} – ${score[1]}`;
 export const readable = (s: string) => s.replaceAll("_", " ");
+/** An event field value (type, call, kind, outcome) in the reader's language. */
+export const word = (s: string, t: T = tEn) =>
+  `v.${s}` in en ? t(`v.${s}` as keyof typeof en) : readable(s);
 export function clockLabel(t: number) {
   const seconds = Math.max(0, Math.floor(t));
   return `${Math.floor(seconds / 60)
@@ -55,28 +60,28 @@ export function changesFor(event: MatchEvent): Change[] {
   if (event.type === "substitution") changes.push({ type: "substitution" });
   return changes;
 }
-export function changeLabel(change: Change, event?: MatchEvent) {
+export function changeLabel(change: Change, event?: MatchEvent, t: T = tEn) {
   switch (change.type) {
     case "flip_call":
       return event?.call === "offside"
-        ? "Play on: onside"
+        ? t("chg.onside")
         : event?.call === "onside"
-          ? "Flag offside"
+          ? t("chg.flagOffside")
           : event?.call === "no_foul"
-            ? "Award the foul"
-            : "Play on: no foul";
+            ? t("chg.awardFoul")
+            : t("chg.noFoul");
     case "not_sent_off":
-      return "Keep the player on";
+      return t("chg.keepOn");
     case "shot_outcome":
-      return change.outcome === "goal"
-        ? "The shot goes in"
-        : "The goal is saved";
+      return change.outcome === "goal" ? t("chg.shotIn") : t("chg.goalSaved");
     case "card":
-      return change.card ? `Show a ${change.card} card` : "No card";
+      return change.card
+        ? t("chg.showCard", { card: word(change.card, t) })
+        : t("chg.noCard");
     case "substitution":
-      return "Change a player";
+      return t("chg.sub");
     case "tactics":
-      return "Change the pressing intensity";
+      return t("chg.tactics");
   }
 }
 export function comparisonSummary(
@@ -89,19 +94,31 @@ export function comparisonSummary(
   const interval = result.uncertainty.shift_ci95[side];
   return `${result.description}. Across ${result.rollouts} paired simulations, ${club}’s win chance ${shift < 0 ? "falls" : "rises"} by ${Math.abs(shift * 100).toFixed(1)} percentage points. ${interval[0] <= 0 && interval[1] >= 0 ? "The interval includes zero, so the direction remains uncertain." : "This is an estimate within the synthetic model world."}`;
 }
-export function describe(event?: MatchEvent) {
-  if (!event) return "Waiting for kick-off";
+export function describe(event?: MatchEvent, t: T = tEn) {
+  if (!event) return t("desc.wait");
   const subject = event.player
     ? `${event.team ?? ""} · ${event.player}`
-    : (event.team ?? "Match");
-  if (event.type === "goal") return `${subject} scores`;
-  if (event.type === "pass")
-    return `${subject} · ${readable(event.kind ?? "pass")}${event.success === false ? " intercepted" : " pass"}`;
+    : (event.team ?? t("desc.match"));
+  if (event.type === "goal") return t("desc.scores", { subject });
+  if (event.type === "pass") {
+    const kind = word(event.kind ?? "pass", t);
+    return t(event.success === false ? "desc.intercepted" : "desc.pass", {
+      subject,
+      kind,
+    });
+  }
   if (event.type === "shot")
-    return `${subject} · shot ${readable(event.outcome ?? "")}`;
+    return t("desc.shot", { subject, outcome: word(event.outcome ?? "", t) });
   if (event.type === "substitution")
-    return `${event.team} · ${event.player} replaces ${event.off}`;
-  return `${subject} · ${readable(event.type)}${event.call ? ` · ${readable(event.call)}` : ""}`;
+    return t("desc.sub", {
+      team: event.team ?? "",
+      on: event.player ?? "",
+      off: event.off ?? "",
+    });
+  return (
+    t("desc.other", { subject, type: word(event.type, t) }) +
+    (event.call ? t("desc.call", { call: word(event.call, t) }) : "")
+  );
 }
 export function statsAt(match: Match, t: number) {
   const stats = {
@@ -173,56 +190,58 @@ export function keyMoments(
 }
 
 /** A short plain-language name for a moment, for fans. */
-export function momentHeadline(e: MatchEvent): string {
+export function momentHeadline(e: MatchEvent, t: T = tEn): string {
   const who = e.player ? `${e.player} (${e.team})` : (e.team ?? "");
-  if (e.type === "goal") return `Goal for ${clubName(e.team ?? "")}`;
-  if (e.type === "card")
-    return `${e.color === "red" ? "Red" : "Yellow"} card for ${who}`;
-  if (e.call === "penalty")
-    return `Penalty given against ${clubName(e.team ?? "")}`;
-  if (e.type === "foul") return `Foul given against ${who}`;
-  if (e.call === "no_foul") return `Play on after a challenge by ${who}`;
-  if (e.type === "offside") return `Offside flag against ${who}`;
-  if (e.call === "onside") return `${who} judged onside`;
-  if (e.type === "shot") return `Big chance for ${who}`;
-  if (e.type === "substitution") return `${e.player} comes on for ${e.team}`;
-  return readable(e.type);
+  const team = clubName(e.team ?? "");
+  if (e.type === "goal") return t("mom.goal", { team });
+  if (e.type === "card") return t(e.color === "red" ? "mom.red" : "mom.yellow", { who });
+  if (e.call === "penalty") return t("mom.penalty", { team });
+  if (e.type === "foul") return t("mom.foul", { who });
+  if (e.call === "no_foul") return t("mom.noFoul", { who });
+  if (e.type === "offside") return t("mom.offside", { who });
+  if (e.call === "onside") return t("mom.onside", { who });
+  if (e.type === "shot") return t("mom.chance", { who });
+  if (e.type === "substitution")
+    return t("mom.sub", { player: e.player ?? "", team: e.team ?? "" });
+  return word(e.type, t);
 }
 
 /** Short tag for a moment marker. */
-export function momentTag(e: MatchEvent): string {
-  if (e.type === "goal") return "Goal";
-  if (e.type === "card") return e.color === "red" ? "Red" : "Card";
-  if (e.call === "penalty") return "Pen";
-  if (e.type === "offside" || e.call === "onside") return "Offside";
-  if (e.type === "shot") return "Chance";
-  if (e.type === "substitution") return "Sub";
-  return "Foul";
+export function momentTag(e: MatchEvent, t: T = tEn): string {
+  if (e.type === "goal") return t("tag.goal");
+  if (e.type === "card") return e.color === "red" ? t("tag.red") : t("tag.card");
+  if (e.call === "penalty") return t("tag.pen");
+  if (e.type === "offside" || e.call === "onside") return t("tag.offside");
+  if (e.type === "shot") return t("tag.chance");
+  if (e.type === "substitution") return t("tag.sub");
+  return t("tag.foul");
 }
 
 /** The fan's question for a change, in their words. */
-export function whatIfQuestion(change: Change, event?: MatchEvent): string {
+export function whatIfQuestion(
+  change: Change,
+  event?: MatchEvent,
+  t: T = tEn,
+): string {
   switch (change.type) {
     case "flip_call":
-      if (event?.call === "penalty") return "What if it wasn’t a penalty?";
-      if (event?.call === "offside") return "What if it was onside?";
-      if (event?.call === "onside") return "What if offside was flagged?";
-      if (event?.call === "no_foul") return "What if the foul was given?";
-      return "What if there was no foul?";
+      if (event?.call === "penalty") return t("q.noPenalty");
+      if (event?.call === "offside") return t("q.onside");
+      if (event?.call === "onside") return t("q.offside");
+      if (event?.call === "no_foul") return t("q.foul");
+      return t("q.noFoul");
     case "not_sent_off":
-      return "What if the player stayed on?";
+      return t("q.stayed");
     case "shot_outcome":
-      return change.outcome === "goal"
-        ? "What if it went in?"
-        : "What if it was saved?";
+      return change.outcome === "goal" ? t("q.wentIn") : t("q.saved");
     case "card":
       return change.card
-        ? `What if it was a ${change.card} card?`
-        : "What if there was no card?";
+        ? t("q.card", { card: word(change.card, t) })
+        : t("q.noCard");
     case "substitution":
-      return "What if you made the change?";
+      return t("q.sub");
     case "tactics":
-      return "What if they pressed harder?";
+      return t("q.press");
   }
 }
 

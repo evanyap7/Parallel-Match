@@ -20,7 +20,9 @@ The site must stay up and free to use until judging ends: **10 Nov, 11:59 pm PT*
   `gpt-4.1-mini`, no model error; Narrator text is model-phrased (24 Oct)
 - [ ] Video under 2 minutes, public on YouTube or Vimeo, no copyrighted music
 - [ ] Repo public, README "Live demo" link filled in, stack table says "live"
-- [ ] Everything in English
+- [ ] Submission text, pitch and video narration in English (the app itself
+  offers 18 languages and opens in English unless the browser asks otherwise;
+  record the video with the language set to English)
 
 ## Category
 
@@ -78,6 +80,11 @@ No login needed. Works on desktop and phone.
 6. Try another match and moment. Featured moments answer in about a second;
    other moments are simulated live: up to about 15 seconds for an early
    moment, less for later ones.
+7. Use the language menu in the top bar to switch the interface between 18
+   languages (English, Spanish, Portuguese, French, German, Italian, Dutch,
+   Polish, Russian, Turkish, Arabic, Hindi, Indonesian, Thai, Vietnamese,
+   Chinese, Japanese, Korean). Agent text (commentary, Law, precedent) stays
+   in English, with a note, so the neutrality guardrails keep applying.
 
 Service health, for the curious: https://pm-agents.agreeableflower-13af161d.japaneast.azurecontainerapps.io/health shows the model provider
 (Foundry) and the MCP connection. MCP endpoint (streamable HTTP):

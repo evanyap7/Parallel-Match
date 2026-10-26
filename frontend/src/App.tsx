@@ -22,6 +22,8 @@ import { AgentStatus } from "./components/AgentPanels";
 import { FanView } from "./components/FanView";
 import { AnalystView } from "./components/AnalystView";
 import { MatchHeader } from "./components/MatchHeader";
+import { LanguagePicker } from "./components/LanguagePicker";
+import { useI18n } from "./i18n";
 import type { ViewProps } from "./components/viewProps";
 import type {
   Change,
@@ -31,11 +33,10 @@ import type {
   MatchEvent,
   MatchSummary,
 } from "./types";
-const errorText = (error: unknown) =>
-  error instanceof Error
-    ? error.message
-    : "Something went wrong. Please try again.";
+const errorText = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 export default function App() {
+  const { t } = useI18n();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [apiMoments, setApiMoments] = useState<MatchEvent[]>([]);
   const [customChange, setCustomChange] = useState<Change>();
@@ -97,7 +98,7 @@ export default function App() {
     ])
       .then(([list, league]) => {
         if (ctrl.signal.aborted) return;
-        if (!list.length) throw new Error("The API returned no matches.");
+        if (!list.length) throw new Error(t("err.noMatches"));
         setMatches(list);
         setClubs(league);
         setMatchId(
@@ -108,7 +109,7 @@ export default function App() {
         );
       })
       .catch((e) => {
-        if (!ctrl.signal.aborted) setLoadError(errorText(e));
+        if (!ctrl.signal.aborted) setLoadError(errorText(e, t("err.generic")));
       });
     return () => ctrl.abort();
   }, [retry]);
@@ -146,7 +147,7 @@ export default function App() {
         setTime(initial?.t ?? 0);
       })
       .catch((e) => {
-        if (!ctrl.signal.aborted) setLoadError(errorText(e));
+        if (!ctrl.signal.aborted) setLoadError(errorText(e, t("err.generic")));
       });
     return () => ctrl.abort();
   }, [matchId, retry]);
@@ -229,14 +230,12 @@ export default function App() {
         response.divergence.t !== selected.t ||
         response.divergence.step !== selected.step
       )
-        throw new Error(
-          "The fork anchor does not match the selected event. Check the API response.",
-        );
+        throw new Error(t("err.anchor"));
       setResult(response);
       setTime(response.divergence.t);
       setAttempt((a) => a + 1);
     } catch (e) {
-      if (!ctrl.signal.aborted) setForkError(errorText(e));
+      if (!ctrl.signal.aborted) setForkError(errorText(e, t("err.generic")));
     } finally {
       if (!ctrl.signal.aborted) setForkLoading(false);
     }
@@ -281,32 +280,33 @@ export default function App() {
           <GitBranch size={20} aria-hidden="true" />
           Parallel Match
         </a>
-        <nav className="view-switch" aria-label="View">
+        <nav className="view-switch" aria-label={t("nav.view")}>
           <button
             aria-pressed={view === "fan"}
             className={view === "fan" ? "active" : ""}
             onClick={() => setView("fan")}
           >
-            Fan
+            {t("nav.fan")}
           </button>
           <button
             aria-pressed={view === "analyst"}
             className={view === "analyst" ? "active" : ""}
             onClick={() => setView("analyst")}
           >
-            Analyst
+            {t("nav.analyst")}
           </button>
         </nav>
         <div className="topbar-right">
+          <LanguagePicker />
           <AgentStatus />
           <span className="source-pill">
             <span className="status-dot" />
-            {sourceMode === "fixtures" ? "Offline simulation" : "Live engine"}
+            {sourceMode === "fixtures" ? t("src.offline") : t("src.live")}
           </span>
           <button
             className="icon-button"
             onClick={() => setShowHelp(true)}
-            aria-label="About this model world"
+            aria-label={t("help.open")}
           >
             <CircleHelp size={19} />
           </button>
@@ -315,25 +315,23 @@ export default function App() {
       <main id="main" tabIndex={-1}>
         <div className="sr-only" role="status" aria-live="polite">
           {forkLoading
-            ? "Running the comparison."
+            ? t("live.running")
             : result
-              ? `Comparison ready: ${result.description}`
+              ? t("live.ready", { description: result.description })
               : ""}
         </div>
         {loadError ? (
           <div className="error-panel" role="alert">
-            <h1>We couldn’t load the match.</h1>
+            <h1>{t("load.error")}</h1>
             <p>{loadError}</p>
             <button className="primary" onClick={() => setRetry((x) => x + 1)}>
-              Try again
+              {t("load.retry")}
             </button>
-            <p className="small">
-              API errors never silently fall back to fixture data.
-            </p>
+            <p className="small">{t("load.noFallback")}</p>
           </div>
         ) : !match || !viewProps ? (
           <div className="loading-panel" role="status">
-            <LoaderCircle className="spin" /> Loading the match…
+            <LoaderCircle className="spin" /> {t("load.loading")}
           </div>
         ) : (
           <>
@@ -345,11 +343,7 @@ export default function App() {
               analyst={view === "analyst"}
             />
             {sourceMode === "fixtures" && (
-              <p className="fixture-notice">
-                Offline mode: replays come from the completed simulator, with
-                one featured comparison per match. Connect the engine to explore
-                every decision.
-              </p>
+              <p className="fixture-notice">{t("offline.notice")}</p>
             )}
             {view === "fan" ? (
               <FanView {...viewProps} />
@@ -361,9 +355,9 @@ export default function App() {
       </main>
       <footer className="site-footer">
         <span>Parallel Match</span>
-        <span>Every club, player and match here is synthetic.</span>
+        <span>{t("footer.synthetic")}</span>
         <button className="text-button" onClick={() => setShowHelp(true)}>
-          About the model world <ArrowRight size={13} />
+          {t("footer.about")} <ArrowRight size={13} />
         </button>
       </footer>
       {showHelp && (
@@ -373,36 +367,22 @@ export default function App() {
             className="help-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="About the model world"
+            aria-label={t("footer.about")}
             onClick={(e) => e.stopPropagation()}
           >
             <button
               className="icon-button close-modal"
-              aria-label="Close about panel"
+              aria-label={t("help.close")}
               onClick={() => setShowHelp(false)}
             >
               <X size={20} />
             </button>
-            <h2>One decision. A different match.</h2>
-            <p>
-              Every club, player and event here is fictional. Real means the
-              recorded synthetic match. What if means a simulated continuation
-              after one changed decision.
-            </p>
-            <p>
-              Each comparison plays hundreds of paired simulations from the
-              moment of the decision, sharing random numbers, so the difference
-              is the decision and not luck. The typical alternate replay is one
-              possible path. Season precedent compares different matches and may
-              disagree.
-            </p>
-            <p>
-              The pitch shows ball-event positions only, not player tracking.
-              Neither the simulation nor precedent is proof of what would happen
-              in a real match.
-            </p>
+            <h2>{t("help.title")}</h2>
+            <p>{t("help.p1")}</p>
+            <p>{t("help.p2")}</p>
+            <p>{t("help.p3")}</p>
             <button className="primary" onClick={() => setShowHelp(false)}>
-              Back to the match
+              {t("help.back")}
             </button>
           </section>
         </div>
