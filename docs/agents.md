@@ -40,6 +40,30 @@ guarantees a parse lands inside that set or is refused - never a free-form
 model guess. Negated fan phrasings ("that wasn't a foul", "he was onside")
 are handled explicitly.
 
+## The Match Desk (agents working together)
+
+`agents/desk.py`, served at `POST /desk` and shown in the Analyst view as the
+Agent desk panel. One request runs every agent on one moment:
+
+1. **Producer** plans the run: a Historian only for a flipped, contestable call.
+2. **Narrator, Law Explainer, Historian** draft in parallel from their own fact bundles.
+3. **Fact-Checker** reviews every draft against a shared case file through four
+   tools: `get_fork_result`, `get_precedent` (the MCP precedent), `get_law` and
+   `check_numbers`. Code checks are the hard gate (guardrails, the key numbers each
+   piece must state, and cross-checks that the agents describe the same moment,
+   call and precedent count). With Foundry the Fact-Checker is also a Microsoft
+   Agent Framework agent that calls the same tools (`provider.run_agent`) and can
+   reject a draft with a reason, which catches errors the number check cannot,
+   such as two shares swapped.
+4. **Editor** rewrites a rejected draft with the notes; the rewrite is checked
+   again, and the deterministic reference text is restored if it still fails.
+5. **Recap Writer** turns the approved pieces into one recap, in the fan's language.
+
+The response carries the trace (role, status, timing, tool calls) that the panel
+renders. If the reviewer agent errors, the code checks stay in charge and the
+trace says so. `tests/test_desk.py` covers the template run, the swapped-share
+catch and repair, a failed rewrite, and a reviewer failure.
+
 ## Microsoft stack
 
 - **Microsoft Agent Framework** (`agent-framework` on PyPI): when

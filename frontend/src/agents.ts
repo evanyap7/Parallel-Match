@@ -117,6 +117,74 @@ export async function narrate(
     throw new Error("Narrator response does not match this comparison.");
   return value as unknown as Narration;
 }
+export interface DeskToolCall {
+  tool: string;
+  args: Obj;
+  ok: boolean;
+}
+export interface DeskCheck {
+  check: string;
+  ok: boolean;
+}
+export interface DeskStep {
+  role: string;
+  status: string;
+  ms: number;
+  start_ms: number;
+  plan?: string[];
+  rejected?: string[];
+  reviewer?: "agent" | "code";
+  review_error?: string | null;
+  tool_calls?: DeskToolCall[];
+  consistency?: DeskCheck[];
+  edited?: Record<string, string>;
+  source?: string | null;
+}
+export interface DeskPiece {
+  role: string;
+  text: string;
+  status: "approved" | "repaired" | "restored";
+  issues: string[];
+  translated: boolean;
+}
+/** The Match Desk: every agent on one moment, fact-checked, with a trace. */
+export interface Desk {
+  match_id: string;
+  event_id: string;
+  plan: string[];
+  recap: { text: string; fell_back: boolean; translated: boolean };
+  pieces: DeskPiece[];
+  checks: {
+    numbers_verified: number;
+    tool_calls: number;
+    consistency: DeskCheck[];
+    agrees_with_simulation: boolean | null;
+    precedent_source: string | null;
+  };
+  trace: DeskStep[];
+  ms: number;
+  fell_back: boolean;
+  translated: boolean;
+}
+export async function desk(
+  result: ForkResult,
+  signal: AbortSignal,
+  lang = "en",
+): Promise<Desk> {
+  const value = await agentPost("/desk", narratorBody(result, lang), signal);
+  if (
+    !obj(value) ||
+    value.match_id !== result.match_id ||
+    value.event_id !== result.event_id ||
+    !obj(value.recap) ||
+    typeof value.recap.text !== "string" ||
+    !Array.isArray(value.pieces) ||
+    !Array.isArray(value.trace) ||
+    !obj(value.checks)
+  )
+    throw new Error("Agent desk response does not match this comparison.");
+  return value as unknown as Desk;
+}
 export async function agentHealth(signal: AbortSignal): Promise<string> {
   const response = await fetch(`${base}/health`, {
     signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),

@@ -18,6 +18,7 @@ import { Pitch } from "./Pitch";
 import { Transport } from "./Transport";
 import { ProbabilityChart } from "./ProbabilityChart";
 import { AgentHistory, AgentLaw, AgentNarrative } from "./AgentPanels";
+import { AgentDesk } from "./AgentDesk";
 import { DecisionControls } from "./DecisionControls";
 import type { ForkResult, Match, MatchEvent } from "../types";
 import type { ViewProps } from "./viewProps";
@@ -333,6 +334,10 @@ function Report(p: ViewProps & { result: ForkResult }) {
           )}
         </section>
       </div>
+      <AgentDesk
+        key={`desk:${match.match_id}:${p.selectedId}:${p.attempt}`}
+        result={result}
+      />
     </section>
   );
 }
