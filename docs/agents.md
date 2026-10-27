@@ -99,7 +99,7 @@ PM_MCP_HTTP=1 PM_MCP_HOST=0.0.0.0 PM_MCP_PORT=8080 python -m mcp_history.server
 ```
 
 API endpoints: `GET /health`, `POST /narrate`, `POST /explain`,
-`POST /precedents`, `POST /parse` (bodies in `agents/server.py` docstring).
+`POST /precedents`, `POST /parse`, `POST /desk` (bodies in `agents/server.py` docstring).
 
 ## Season data
 

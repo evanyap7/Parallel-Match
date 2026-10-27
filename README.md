@@ -42,7 +42,7 @@ The fan picks a language before entering, and the agents answer in it (see `docs
 
 | Service | Used for | Where | Status |
 |---|---|---|---|
-| Microsoft Agent Framework + Azure AI Foundry | Narrator, Law Explainer, Historian, Intervention Parser; keyless sign-in with a managed identity, guardrails and template fallback on every utterance | `agents/`, `docs/agents.md` | Built; Foundry with `PM_AGENT_BACKEND=foundry` (`deploy.sh foundry-create`). The provider in use is shown live at `/agents/health` |
+| Microsoft Agent Framework + Azure AI Foundry | Narrator, Law Explainer, Historian, Intervention Parser; keyless sign-in with a managed identity, guardrails and template fallback on every utterance | `agents/`, `docs/agents.md` | Live: Foundry (`gpt-4.1-mini`), including the Match Desk and its tool-calling Fact-Checker (`POST /desk`). The provider in use is shown live at `/agents/health` |
 | MCP | Season precedent as tools (`history_query`, `season_summary`); the Historian fetches its facts through the deployed MCP server | `mcp_history/`, `agents/history_client.py` | Live; the deployed `/agents/precedents` reports `source: "mcp"` |
 | Azure Container Apps | Four apps: front end, simulator API, agents API, MCP server; one user-assigned managed identity | `Dockerfile`, `deploy/`, `docs/deployment.md` | Live: four apps in Japan East (front end, simulator API, agents API, MCP server) |
 | Microsoft Fabric | Season tables and the precedent query in SQL | `python3 -m parallel_match export`, `docs/history-query.md` | Tables and SQL ready; not loaded for this submission |
