@@ -4,7 +4,7 @@ import type { AgentText } from "../agents";
 import { useI18n } from "../i18n";
 import type { ForkResult, MatchEvent } from "../types";
 
-function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
+export function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
   const { t, lang } = useI18n();
   const [state, setState] = useState<{ data?: T; error?: string }>({});
   const [retry, setRetry] = useState(0);
@@ -28,13 +28,13 @@ function useAgent<T>(load: (signal: AbortSignal) => Promise<T>) {
   return { ...state, retry: () => setRetry((n) => n + 1) };
 }
 /** Shown only when the service could not give the text in the chosen language. */
-function EnglishNote({ translated }: { translated?: boolean }) {
+export function EnglishNote({ translated }: { translated?: boolean }) {
   const { lang, t } = useI18n();
   return lang === "en" || translated !== false ? null : (
     <p className="small muted">{t("agent.englishNote")}</p>
   );
 }
-function AgentState({ error, retry }: { error?: string; retry: () => void }) {
+export function AgentState({ error, retry }: { error?: string; retry: () => void }) {
   const { t } = useI18n();
   return (
     <p className="small muted" role="status">

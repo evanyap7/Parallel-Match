@@ -9,6 +9,9 @@ Endpoints (all POST bodies are JSON):
                                    (fetched through the MCP server when
                                    PM_HISTORY_MCP_URL is set; `source` says)
 - POST /parse                      {text, match_id, event_id}
+- POST /desk                       {fork_response, match_id?} - the Match Desk:
+                                   every agent on one moment, fact-checked
+                                   through tools, with a trace (agents/desk.py)
 
 Matches are the real 90-match season (parallel_match/data/season.json,
 replayed once at startup). Precedent numbers come from history_for(), the
@@ -33,7 +36,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import cache, history_client, historian, intervention, law_explainer, narrator, translate
+from . import cache, desk, history_client, historian, intervention, law_explainer, narrator, translate
 from .facts import fork_facts
 from .provider import TemplateProvider, get_provider, provider_error
 from mcp_history import HistoryStore, default_store
@@ -66,6 +69,7 @@ def _warm() -> None:
             explain(EventBody(match_id=mid, event_id=eid))
             precedents(PrecedentsBody(match_id=mid, event_id=eid, fork_response=fork))
             precedents(PrecedentsBody(match_id=mid, event_id=eid))
+            run_desk(NarrateBody(fork_response=fork, match_id=mid))
         except Exception as exc:  # pragma: no cover - best effort
             log.warning("warm-up skipped %s: %s", path, exc)
 
@@ -219,6 +223,26 @@ def precedents(body: PrecedentsBody):
         return result
 
     return _cached(cache.key("precedents", body.match_id, body.event_id, sim, lang), compute)
+
+
+@app.post("/desk")
+def run_desk(body: NarrateBody):
+    store = _store()
+    fork = body.fork_response
+    request = fork.get("request") or {}
+    match_id = body.match_id or fork.get("match_id") or request.get("match_id") or ""
+    event_id = fork.get("event_id") or request.get("event_id") or ""
+    event, _index = _event_or_404(store, match_id, event_id)
+    lang = translate.norm_lang(body.lang)
+
+    def compute() -> dict:
+        result = desk.run(fork, store.match(match_id), event, get_provider(), lang,
+                          history_client.precedent, compare_with_simulation)
+        if result["checks"]["precedent_source"]:
+            result["source"] = result["checks"]["precedent_source"]
+        return result
+
+    return _cached(cache.key("desk", match_id, fork_facts(fork), lang), compute)
 
 
 @app.post("/parse")

@@ -10,3 +10,4 @@ dist/
 out/
 .playwright-mcp/
 .taste-skill/
+*.egg-info/

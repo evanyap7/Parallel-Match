@@ -148,6 +148,24 @@ class AgentFrameworkProvider:
         self.last_error = None
         return text
 
+    def run_agent(self, name: str, instructions: str, prompt: str,
+                  tools: list, timeout_s: float | None = None) -> str:
+        """Run a named Agent Framework agent that may call `tools` (plain
+        Python functions, wrapped as function tools) before answering.
+
+        A failure here raises but does not start the cooldown: one agent's
+        tool loop going wrong should not switch every other agent to
+        templates for a minute."""
+        from agent_framework import Agent, tool
+
+        agents = self.__dict__.setdefault("_named_agents", {})
+        if name not in agents:
+            agents[name] = Agent(client=self._client, name=name, instructions=instructions)
+        wrapped = [tool(fn) for fn in tools]
+        timeout = timeout_s or float(os.environ.get("PM_DESK_TOOL_TIMEOUT_S", "20"))
+        result = self._loop.run(agents[name].run(prompt, tools=wrapped), timeout)
+        return self._text(result)
+
 
 _PROVIDER: ChatProvider | None = None
 _PROVIDER_ERROR: str | None = None
