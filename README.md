@@ -13,7 +13,7 @@ football-like ranges (see the realism report).
 
 ## For judges
 
-**Demo video (under 2 minutes):** <https://youtu.be/5F_K8bCIS3Y>
+**Demo video (under 2 minutes):** <https://youtu.be/Qt4DRwWWmOo>
 
 **Live demo:** <https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io/> (no login). Start with match **m052** (WES 2-1 COP),
 the borderline penalty at 56', and ask "what if that was not a penalty?".

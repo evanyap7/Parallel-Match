@@ -1,7 +1,7 @@
 # Parallel Match: submission (Inside the Game hackathon)
 
 - Live demo: https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io
-- Demo video (under 2 minutes): https://youtu.be/5F_K8bCIS3Y
+- Demo video (under 2 minutes): https://youtu.be/Qt4DRwWWmOo
 - Repo: https://github.com/evanyap7/Parallel-Match
 
 ## Category
