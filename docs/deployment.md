@@ -1,4 +1,4 @@
-# Deployment runbook (Jiawei track)
+# Deployment runbook
 
 Goal: one public link for the judges (the front end), backed by the simulator
 API, the agents API and the MCP history server, all on Azure Container Apps.

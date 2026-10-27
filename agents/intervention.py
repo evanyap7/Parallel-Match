@@ -2,8 +2,7 @@
 
 Deliberately plain code, not a model: the fork engine accepts a bounded set
 of changes, and a deterministic parser plus validator guarantees every parse
-lands inside that set (or is refused). This is also the first feature on the
-cut list, so it is small on purpose.
+lands inside that set (or is refused). It is small on purpose.
 
 Supported changes (the bounded set the fork engine accepts):
 

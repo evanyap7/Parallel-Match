@@ -34,7 +34,7 @@ The Law Explainer's texts live in `agents/laws.py`, keyed by the exact `law`
 strings the simulator emits (`parallel_match/rules.py`). A test asserts the
 two tables stay in sync, and that no Law text trips the neutrality guardrail.
 
-The Intervention Parser is plain code on purpose (and first on the cut list):
+The Intervention Parser is plain code on purpose:
 the fork engine accepts a bounded set of changes, and a deterministic parser
 guarantees a parse lands inside that set or is refused - never a free-form
 model guess. Negated fan phrasings ("that wasn't a foul", "he was onside")

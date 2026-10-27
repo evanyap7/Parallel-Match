@@ -13,6 +13,8 @@ football-like ranges (see the realism report).
 
 ## For judges
 
+**Demo video (under 2 minutes):** <https://youtu.be/5F_K8bCIS3Y>
+
 **Live demo:** <https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io/> (no login). Start with match **m052** (WES 2-1 COP),
 the borderline penalty at 56', and ask "what if that was not a penalty?".
 
@@ -42,7 +44,7 @@ The fan picks a language before entering, and the agents answer in it (see `docs
 | Microsoft Agent Framework + Azure AI Foundry | Narrator, Law Explainer, Historian, Intervention Parser; keyless sign-in with a managed identity, guardrails and template fallback on every utterance | `agents/`, `docs/agents.md` | Built; Foundry with `PM_AGENT_BACKEND=foundry` (`deploy.sh foundry-create`). The provider in use is shown live at `/agents/health` |
 | MCP | Season precedent as tools (`history_query`, `season_summary`); the Historian fetches its facts through the deployed MCP server | `mcp_history/`, `agents/history_client.py` | Live; the deployed `/agents/precedents` reports `source: "mcp"` |
 | Azure Container Apps | Four apps: front end, simulator API, agents API, MCP server; one user-assigned managed identity | `Dockerfile`, `deploy/`, `docs/deployment.md` | Live: four apps in Japan East (front end, simulator API, agents API, MCP server) |
-| Microsoft Fabric | Season tables and the precedent query in SQL | `python3 -m parallel_match export`, `docs/history-query.md` | Tables and SQL ready; load pending |
+| Microsoft Fabric | Season tables and the precedent query in SQL | `python3 -m parallel_match export`, `docs/history-query.md` | Tables and SQL ready; not loaded for this submission |
 
 **Known limits.** Positions are derived from formations, not tracked, so this is an
 event-level model, not physics. Team strength is not yet a feature of the live
@@ -58,7 +60,7 @@ python3 -m parallel_match clubs                                   # the fictiona
 python3 -m parallel_match match --home HAR --away NOR --seed 12   # one match summary
 python3 -m parallel_match realism --matches 360                   # writes reports/realism_v1.md
 python3 -m parallel_match fork --match m052 --event m052-0715     # what if that penalty was not given?
-python3 -m parallel_match export --out out/season                 # flat tables for Microsoft Fabric
+python3 -m parallel_match export --out out/season                 # flat tables (for a Fabric Lakehouse)
 python3 -m unittest discover -s tests -t .                        # all tests
 ```
 
@@ -152,8 +154,8 @@ cd frontend && npm install && npm run dev
 - `frontend/` React match viewer (Uwais)
 - `tests/` determinism, state copy, rules, fork engine, API, realism,
   agents, guardrails, history store
-- `docs/` event schema, API, history query for Fabric, `agents.md`,
-  `deployment.md` (Azure runbook), `SUBMISSION.md`
+- `docs/` event schema, API, history query, `agents.md`,
+  `deployment.md` (Azure runbook), `SUBMISSION.md` (pitch and test steps)
 - `fixtures/` sample match and fork responses for front-end work
 - `deploy/` Container Apps deploy script (simulator API, agents, MCP, front end),
   agents Dockerfile, front-end Dockerfile, hello-world smoke app

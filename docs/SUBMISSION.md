@@ -1,39 +1,17 @@
-# Submission draft (Inside the Game hackathon)
+# Parallel Match: submission (Inside the Game hackathon)
 
-Paste-ready text for the form at aka.ms/insidethegame (Projects page). Only
-the video link is still to fill in. Rules: github.com/microsoft/insidethegamehackathon,
-OFFICIAL RULES.md.
-
-**Deadline: 27 Oct 2026, 11:59 pm PT = Wed 28 Oct, 2:59 pm Singapore.**
-The site must stay up and free to use until judging ends: **10 Nov, 11:59 pm PT**.
-
-## Checklist
-
-- [ ] Team registered (registration closed 20 Oct)
-- [ ] Category chosen and named in the pitch (one category prize per project)
-- [x] Live link works (`./deploy/smoke.sh` all ok, 24 Oct)
-- [ ] Live link checked on a phone on mobile data
-- [x] Hosting confirmed with `./deploy/deploy.sh status` (pm-api 2 vCPU, every
-  app min 1 replica, about $44 to 10 Nov, inside the $100 credit); output in
-  `docs/deployment.md` (25 Oct)
-- [x] Foundry on: agents `/health` shows `agent-framework/foundry`, model
-  `gpt-4.1-mini`, no model error; Narrator text is model-phrased (24 Oct)
-- [ ] Video under 2 minutes, public on YouTube or Vimeo, no copyrighted music
-- [ ] Repo public, README "Live demo" link filled in, stack table says "live"
-- [ ] Submission text, pitch and video narration in English (the app itself
-  offers 18 languages and opens in English unless the browser asks otherwise;
-  record the video with the language set to English)
+- Live demo: https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io
+- Demo video (under 2 minutes): https://youtu.be/5F_K8bCIS3Y
+- Repo: https://github.com/evanyap7/Parallel-Match
 
 ## Category
 
-We enter **Best Azure Cloud Native Integration**: four Azure Container Apps
-(front end, simulator API, agents API, MCP server) with a user-assigned managed
-identity for image pulls and keyless Foundry access, an MCP server the agents
-call over streamable HTTP, and Azure AI Foundry behind Microsoft Agent
-Framework. *(Team to confirm. Alternatives: Best Use of Microsoft Foundry,
-Best Multi-Agent System.)*
+**Best Azure Cloud Native Integration**: four Azure Container Apps (front end,
+simulator API, agents API, MCP server) with a user-assigned managed identity
+for image pulls and keyless Foundry access, an MCP server the agents call over
+streamable HTTP, and Azure AI Foundry behind Microsoft Agent Framework.
 
-## Elevator pitch (about 120 words)
+## Elevator pitch
 
 Parallel Match lets a fan tap a contestable moment, a borderline penalty or a
 tight offside, and ask "what if that call had gone the other way?". The screen
@@ -48,24 +26,19 @@ guardrails. All data is synthetic. It runs on Azure Container Apps.
 
 ## Microsoft technologies used
 
-- **Azure AI Foundry** (model: as printed by `deploy.sh foundry-create`, normally `gpt-4.1-mini`) via **Microsoft Agent Framework**:
+- **Azure AI Foundry** (model `gpt-4.1-mini`) via **Microsoft Agent Framework**:
   Narrator, Law Explainer, Historian, Intervention Parser (`agents/`)
 - **MCP**: `history_query` / `season_summary` server on Container Apps; the
   Historian fetches its facts through it (`mcp_history/`, `agents/history_client.py`)
 - **Azure Container Apps**: four apps, user-assigned managed identity, Azure
   Container Registry (`deploy/`)
-<!-- Claim these two only if true:
-- GitHub Copilot: add a line only if the team used it while building.
-- Microsoft Fabric: add "season decisions in a Fabric Lakehouse; the precedent
-  query runs on its SQL analytics endpoint with the same result as the app"
-  only once docs/fabric.md step 3 has matched, with docs/img/fabric-precedent-m052.png.
--->
 
 ## Testing instructions (for judges)
 
 No login needed. Works on desktop and phone.
 
 1. Open https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io
+   and choose a language (English is fine).
 2. Choose match **m052** (Westfield Rangers 2-1 Copperfield FC). On the
    timeline, pick the **penalty at 56'**.
 3. Tap the question button ("What if…?"), or type your own, e.g. "what if
@@ -91,9 +64,3 @@ No login needed. Works on desktop and phone.
 Service health, for the curious: https://pm-agents.agreeableflower-13af161d.japaneast.azurecontainerapps.io/health shows the model provider
 (Foundry) and the MCP connection. MCP endpoint (streamable HTTP):
 https://pm-history-mcp.agreeableflower-13af161d.japaneast.azurecontainerapps.io/mcp.
-
-## Links
-
-- Live demo: https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io
-- Video: <YouTube URL>
-- Repo: https://github.com/evanyap7/Parallel-Match
