@@ -2,163 +2,83 @@
 
 Microsoft x Premier League "Inside the Game" developer hackathon entry.
 
-A fan taps a contestable moment (foul, offside, card, penalty, substitution) and asks
-"what if that wasn't a foul?". The screen splits into the real match and an alternate
-match played as a full broadcast, backed by Monte Carlo re-simulation and precedent from
-the league's own history.
+A fan taps a contestable moment (foul, offside, card, penalty, substitution) and asks *"what if that wasn't a foul?"* The screen splits into the real match and an alternate one, backed by Monte Carlo re-simulation and precedent from the league's own history.
 
-**All data is synthetic.** Fictional clubs and players only. No real match data, logos,
-names or music. The simulator is tuned so its per-match averages fall inside
-football-like ranges (see the realism report).
+**[Demo video (under 2 min)](https://youtu.be/Qt4DRwWWmOo)** · **[Live demo](https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io/)** (no login). Pick English, then match **WES v COP** and ask *"what if that was not a penalty?"* at 56'.
 
-## For judges
+![Parallel Match: a 56th-minute penalty on the key-moments timeline, original and alternate timelines side by side](docs/screenshot.png)
 
-**Demo video (under 2 minutes):** <https://youtu.be/Qt4DRwWWmOo>
+> **All data is synthetic.** Fictional clubs and players only. No real match data, logos, names or music. The alternate timeline is a simulation, not a prediction of real football, and every number comes with its uncertainty.
 
-**Live demo:** <https://pm-web.agreeableflower-13af161d.japaneast.azurecontainerapps.io/> (no login). Start with match **m052** (WES 2-1 COP),
-the borderline penalty at 56', and ask "what if that was not a penalty?".
+## How "what if" works
 
-**What you are looking at is a model world.** Every match, club and player is generated.
-The alternate timeline is a simulation, not a prediction of real football, and every
-number on screen comes with its uncertainty.
+```mermaid
+flowchart LR
+    M["Seeded match<br/>(deterministic)"] --> R["Replay to the moment"]
+    R --> C["Apply one change<br/>flip a call, card, goal, sub..."]
+    C --> P["Hundreds of paired rollouts<br/>original and altered share<br/>random numbers"]
+    P --> O["Result with 95% interval<br/>+ one alternate timeline"]
+    H["Season precedent<br/>(comparable calls)"] --> O
+```
 
-| Question | Answer, and where to check it |
+Because both branches share random numbers, the difference is the change, not luck. A second, independent opinion comes from precedent in the season itself, and the response says so when the two disagree.
+
+## Multi-agent Match Desk
+
+```mermaid
+flowchart LR
+    PR[Producer plans] --> N[Narrator] & L[Law Explainer] & HI[Historian]
+    N & L & HI --> FC["Fact-Checker<br/>(tool-calling agent)"]
+    FC --> ED[Editor repairs] --> RW[Recap Writer]
+```
+
+All numbers and moment-finding stay in plain code. Agents only phrase them, and guardrails reject output containing numbers not in the facts or wording that judges officials. A test swaps a number and checks that only the Fact-Checker catches it.
+
+## Microsoft stack
+
+| Service | Used for | Status |
+|---|---|---|
+| Microsoft Agent Framework + Azure AI Foundry | Narrator, Law Explainer, Historian, Fact-Checker; managed identity, guardrails, template fallback | Live (`gpt-4.1-mini`) |
+| MCP | Season precedent as tools (`history_query`, `season_summary`) | Live |
+| Azure Container Apps | Four apps: front end, simulator API, agents API, MCP server | Live, Japan East |
+| Microsoft Fabric | Season tables and precedent query in SQL | Ready, not loaded for this submission |
+
+The interface ships in **18 languages** (Arabic laid out right to left), and a test fails if any language misses a key.
+
+<details>
+<summary>Judge Q&A: realism, speed, neutrality</summary>
+
+| Question | Answer |
 |---|---|
-| Is the data synthetic? | Yes. 10 invented clubs with tactical archetypes and generated players (`parallel_match/teams.py`); 90 simulated matches (`parallel_match/data/season.json`). No real data was used to build or tune anything beyond public, approximate per-match averages. |
-| Is it football-like? | Measured over 360 matches: 2.78 goals, 27.4 shots, 82% pass accuracy, 24.4 fouls, 3.2 yellows, 10.3 corners, 42% home wins, 24% draws per match. All 16 metrics fall inside approximate top-flight ranges (`reports/realism_v1.md`). The ranges are a sanity band, not measured truth. |
-| How is "what if" computed? | Replay the seeded match to the moment, apply one change, then play hundreds of paired rollouts: original and altered branches share random numbers, so the difference is the change, not luck. The result carries a 95% interval (`parallel_match/fork.py`). |
-| Is there a second opinion? | Yes. Precedent from the season itself: comparable borderline calls, split by whether the call was given (`parallel_match/history.py`). When it disagrees with the simulation, the response says so. One function, `history_for()`, feeds both the API and the MCP tool. |
-| How fast? | Measured on a 10-core laptop: a full match simulates in about 60 ms; 200 rollouts take 2 to 4 s on 8 workers; featured moments of the 5 story matches are precomputed at 500 rollouts and return in about 1 s on the live site. A fresh 200-rollout fork on the deployed single-CPU API takes about 25 s (the live site's one known slow path), so try the featured moments first. |
-| How do the agents work together? | The **Match Desk** (`agents/desk.py`, `POST /desk`, Analyst view): a Producer plans the run; Narrator, Law Explainer and Historian draft in parallel; a Fact-Checker, a Microsoft Agent Framework agent with tools (`get_fork_result`, `get_precedent` via MCP, `get_law`, `check_numbers`), verifies every number and the agents' agreement with each other; an Editor repairs what fails; a Recap Writer turns the approved pieces into one recap. Every step, tool call and timing is shown in an on-screen trace. Tested in `tests/test_desk.py`, including a swapped number that only the Fact-Checker catches. |
-| Do the agents invent numbers? | No. All numbers and moment-finding stay in plain code; agents only phrase them, and guardrails reject output with numbers not in the facts or wording that judges officials (`agents/guardrails.py`). |
-| Is it neutral about officials? | Decisions are explained against the Law of the Game they fall under, with the measured margin. Nothing says a referee or player "got it wrong". |
+| Is it football-like? | Over 360 matches: 2.78 goals, 27.4 shots, 82% pass accuracy, 24.4 fouls, 3.2 yellows per match. All 16 metrics fall inside approximate top-flight ranges ([report](reports/realism_v1.md)). A sanity band, not measured truth. |
+| How fast? | A full match simulates in about 60 ms. 200 rollouts take 2 to 4 s on 8 workers. Featured moments are precomputed at 500 rollouts and return in about 1 s live. A fresh fork on the single-CPU deployed API takes about 25 s, so try featured moments first. |
+| Neutral about officials? | Decisions are explained against the Law of the Game with the measured margin. Nothing says a referee or player "got it wrong". |
+| Known limits | Event-level model, not physics. Positions derive from formations. Precedent compares different matches, so it carries confounding; the paired simulation is the cleaner estimate. |
+</details>
 
-**Languages.** The interface is available in 18 languages across the Americas, Europe and Asia
-(language menu in the top bar; Arabic is laid out right to left). Catalogs live in
-`frontend/src/i18n/`, and a test fails if any language misses a key or breaks a placeholder.
-The fan picks a language before entering, and the agents answer in it (see `docs/agents.md`).
+## Run it
 
-**Microsoft stack**
-
-| Service | Used for | Where | Status |
-|---|---|---|---|
-| Microsoft Agent Framework + Azure AI Foundry | Narrator, Law Explainer, Historian, Intervention Parser; keyless sign-in with a managed identity, guardrails and template fallback on every utterance | `agents/`, `docs/agents.md` | Live: Foundry (`gpt-4.1-mini`), including the Match Desk and its tool-calling Fact-Checker (`POST /desk`). The provider in use is shown live at `/agents/health` |
-| MCP | Season precedent as tools (`history_query`, `season_summary`); the Historian fetches its facts through the deployed MCP server | `mcp_history/`, `agents/history_client.py` | Live; the deployed `/agents/precedents` reports `source: "mcp"` |
-| Azure Container Apps | Four apps: front end, simulator API, agents API, MCP server; one user-assigned managed identity | `Dockerfile`, `deploy/`, `docs/deployment.md` | Live: four apps in Japan East (front end, simulator API, agents API, MCP server) |
-| Microsoft Fabric | Season tables and the precedent query in SQL | `python3 -m parallel_match export`, `docs/history-query.md` | Tables and SQL ready; not loaded for this submission |
-
-**Known limits.** Positions are derived from formations, not tracked, so this is an
-event-level model, not physics. Team strength is not yet a feature of the live
-win-probability curve. Precedent compares different matches, so it carries confounding;
-the paired simulation is the cleaner estimate of a single call's effect.
-
-## Quick start
-
-Python 3.11+, no dependencies.
+Python 3.11+, no dependencies for the simulator.
 
 ```bash
-python3 -m parallel_match clubs                                   # the fictional league
-python3 -m parallel_match match --home HAR --away NOR --seed 12   # one match summary
-python3 -m parallel_match realism --matches 360                   # writes reports/realism_v1.md
+python3 -m parallel_match match --home HAR --away NOR --seed 12   # one match
 python3 -m parallel_match fork --match m052 --event m052-0715     # what if that penalty was not given?
-python3 -m parallel_match export --out out/season                 # flat tables (for a Fabric Lakehouse)
+python3 -m parallel_match realism --matches 360                   # writes reports/realism_v1.md
 python3 -m unittest discover -s tests -t .                        # all tests
 ```
 
-API (for the front end and agents), see `docs/api.md`:
-
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements-api.txt
-.venv/bin/uvicorn parallel_match.api:app --reload                 # http://localhost:8000/docs
+.venv/bin/uvicorn parallel_match.api:app --reload                 # API docs at localhost:8000/docs
+cd frontend && npm install && npm run dev                         # React + Vite match viewer
 ```
 
-## Fork engine
+## Repo map
 
-`parallel_match/fork.py` answers "what if?" for one moment:
-
-1. Replay the match to just before the moment (deterministic, so exact).
-2. Turn the change into a force the simulator applies at exactly that step: flip a
-   call, change a card, a shot goes in or a goal does not, a substitution, a tactical
-   change, or a player unavailable.
-3. Paired rollouts: each rollout plays the original and the altered branch with the
-   same random numbers, so the difference is the change, not luck. Rollout 0 keeps the
-   match seed, so its original branch is the real match.
-4. One typical alternate timeline (the most common alternate score) is kept for the
-   parallel broadcast, with a win-probability curve for both timelines.
-
-Speed, measured on a 10-core laptop: one rollout from mid-match is about 30 ms of CPU;
-200 rollouts take 2 to 4 s on 8 workers. Featured moments in the story matches are
-precomputed at 500 rollouts and served instantly.
-
-The precedent check (`parallel_match/history.py`) is independent of the rollouts:
-comparable borderline decisions in the season, split by whether the call was given.
-If the two estimates disagree, the response says so.
-
-## Season
-
-`parallel_match/data/season.json` holds 90 fixtures (double round robin) and their
-seeds; every match regenerates exactly from its seed. Five story matches were planted
-by searching seeds for a two-goal comeback, an early red card, a stoppage-time winner,
-a borderline penalty and a tight late offside. Still generated, just selected.
-
-## Agents (Narrator, Law Explainer, Historian, Intervention Parser)
-
-Phrasing agents on the Microsoft stack (Agent Framework + Azure AI Foundry,
-MCP, Azure Container Apps), built against the contract fixtures:
-
-```bash
-pip install -e ".[agents,mcp]"
-uvicorn agents.server:app --port 8001        # REST: /narrate /explain /precedents /parse
-python -m mcp_history.server                 # MCP tools: history_query, season_summary
-```
-
-They run dependency-free on deterministic template phrasing by default and
-switch to a Foundry model with `PM_AGENT_BACKEND=foundry`. All numbers and
-all moment-finding stay in plain code; guardrails enforce neutrality (never
-"the referee got it wrong") and factual grounding on every output. See
-`docs/agents.md` and `docs/deployment.md`.
-
-## Front end (React match viewer)
-
-Uwais's viewer lives in `frontend/` (React + Vite + SVG pitch). It runs on the
-repository fixtures by default and against the live API when `VITE_API_BASE_URL`
-is set. See `frontend/README.md`.
-
-```bash
-cd frontend && npm install && npm run dev
-```
-
-## Generator design
-
-- **Event level, not physics.** About 1,200 events per match: passes, dribbles, tackles,
-  fouls, offsides, shots, set pieces, cards, substitutions.
-- **Small copyable state** (`parallel_match/state.py`): clock, score, ball, possession,
-  fatigue, cards, tactics, and the RNG position. `MatchState.copy()` is the fork.
-- **Derived positions.** Players are not stored. Each step they are placed from formation
-  slots, pulled toward the ball by team style (press, attack). Forwards play on the
-  shoulder of the defensive line, so offside is measured against real derived positions.
-- **Officiating with margins.** Fouls carry contact severity 0..1 against the referee's
-  threshold. Offsides carry a margin in metres. Officials perceive both with noise, so
-  borderline calls can flip. Rules live in `parallel_match/rules.py` as pure functions.
-- **Seeded and deterministic.** Randomness is keyed by (seed, step), so the same seed
-  replays the identical match, and a fork shares random numbers with the original
-  until the two diverge.
-
-## Layout
-
-- `parallel_match/` simulator: `sim.py` (match engine), `rules.py` (Laws), `teams.py`
-  (fictional league), `state.py`, `rng.py`, `fork.py` (what-if engine), `winprob.py`,
-  `season.py`, `history.py` (precedent), `api.py` (FastAPI), `realism.py`, `cli.py`
-- `parallel_match/data/` season fixtures, win-probability table, precomputed forks
-- `agents/` phrasing agents + FastAPI service; `mcp_history/` season history
-  precedent (same `history_for` source as `/fork`) + MCP server on the real season
-- `frontend/` React match viewer (Uwais)
-- `tests/` determinism, state copy, rules, fork engine, API, realism,
-  agents, guardrails, history store
-- `docs/` event schema, API, history query, `agents.md`,
-  `deployment.md` (Azure runbook), `SUBMISSION.md` (pitch and test steps)
-- `fixtures/` sample match and fork responses for front-end work
-- `deploy/` Container Apps deploy script (simulator API, agents, MCP, front end),
-  agents Dockerfile, front-end Dockerfile, hello-world smoke app
-- `reports/realism_v1.md` latest realism report
-- `Dockerfile` the simulator API image for Azure Container Apps
+| Path | Contents |
+|---|---|
+| `parallel_match/` | Simulator (`sim.py`), Laws (`rules.py`), what-if engine (`fork.py`), precedent (`history.py`), FastAPI (`api.py`) |
+| `agents/`, `mcp_history/` | Phrasing agents and Match Desk, MCP precedent server |
+| `frontend/` | React match viewer with SVG pitch |
+| `docs/` | API, agents, deployment runbook, [SUBMISSION.md](docs/SUBMISSION.md) |
+| `tests/`, `reports/`, `deploy/` | Determinism, fork, API, agents tests; realism report; Azure deploy scripts |
