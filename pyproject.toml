@@ -15,7 +15,7 @@ mcp = ["mcp>=1.2"]
 # Microsoft Agent Framework on Azure AI Foundry (agents/provider.py).
 # The metapackage brings the Foundry client via agent-framework-core[all].
 foundry = ["agent-framework>=1.0", "azure-identity>=1.16"]
-dev = ["fastapi>=0.110", "uvicorn>=0.29", "mcp>=1.2", "httpx"]
+dev = ["fastapi>=0.110", "uvicorn>=0.29", "mcp>=1.2", "httpx", "hypothesis>=6.100"]
 
 [project.scripts]
 parallel-match = "parallel_match.cli:main"
