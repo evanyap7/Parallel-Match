@@ -73,6 +73,22 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-api.txt
 cd frontend && npm install && npm run dev                         # React + Vite match viewer
 ```
 
+## Who built what
+
+A team of three. Line counts are from `git blame` at e92e419: lines still in
+the code, not lines ever written.
+
+- **Evan Yap:** the simulator and fork engine (`parallel_match/`, about 3,600
+  lines), the Match Desk (`agents/desk.py`), translation (`agents/translate.py`),
+  and most of the front end as it stands (about 10,400 of 12,500 lines in
+  `frontend/src`), built on Uwais's viewer.
+- **Jiawei (JWHaan):** the phrasing agents (Narrator, Law Explainer, Historian,
+  Intervention Parser), `agents/guardrails.py`, the Foundry and Agent Framework
+  provider (`agents/provider.py`), the MCP history server (`mcp_history/`) and
+  the Azure deployment (`deploy/`, `docs/deployment.md`).
+- **Uwais:** the first React match viewer, its API adapter and the demo
+  handoff (about 2,100 lines of `frontend/src`).
+
 ## Repo map
 
 | Path | Contents |
